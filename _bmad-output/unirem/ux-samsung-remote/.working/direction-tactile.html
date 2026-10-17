@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UniRem — Direction 3 — Tactile Retro</title>
+<style>
+/* ============================================================
+   DIRECTION 3 — "TACTILE RETRO"
+   Register: playful physical-remote homage, high affordance, chunky.
+   Skeuomorphic key caps with real depth (top face / side wall /
+   drop shadow), textured etched surfaces, engraved labels, LED
+   light-pipe ring seated in a routed groove. Still dark-mode-first:
+   espresso-black plastics, bone-white caps.
+   Density: high (every control is a physical object). Type weight:
+   700–800, labels engraved/uppercase.
+   Motion implication: 1–2mm key travel on press (cap sinks, shadow
+   shrinks); light pipe swells ~200ms then holds. Springs, not fades.
+   HERO MODE SHOWN: (b) big-pad — large textured swipe surface
+   (swipe = D-pad, tap = OK) with a floating function-key row.
+   (Mode (a) thumb-arc exists as the alternate hero.)
+   RING STATES DEPICTED: Phone 1 = idle dim + pressed-key travel
+   (pulse implied, noted); LED legend below shows all five states.
+   ============================================================ */
+
+:root{
+  /* ---- palette: every hex documented ---- */
+  --page-bg:#171009;        /* page canvas: espresso, sets the workshop-table mood */
+  --page-ink:#c9b89c;       /* page copy: warm parchment gray */
+  --page-ink-dim:#8a7a60;   /* page captions: deeper khaki */
+  --bezel:#241a12;          /* phone bezel: dark walnut plastic */
+  --bezel-hi:#3d2e1f;       /* bezel top highlight: molded plastic edge catch */
+  --shell:#1d1510;          /* screen background: warm charcoal-brown remote body */
+  --shell-2:#2a1f17;        /* raised plates: one step lighter brown */
+  --plate:#33271d;          /* control plate under keys: etched panel */
+  --groove:#120c08;         /* routed groove around the pad: near-black channel the light pipe sits in */
+  --cap-top:#e9dfc9;        /* key cap top face: bone ivory */
+  --cap-side:#b3a68c;       /* key cap side wall: shaded bone, sells the depth */
+  --cap-ink:#3a2f22;        /* engraved cap legends: dark walnut ink */
+  --cap-top-dark:#4a3a2c;   /* dark cap top face (secondary keys): smoked plastic */
+  --cap-side-dark:#33281e;  /* dark cap side wall */
+  --cap-ink-light:#e9dfc9;  /* light legends on dark caps: bone */
+  --hairline:#453527;       /* seams between molded parts */
+  --ink:#efe6d2;            /* primary on-screen text: warm parchment */
+  --ink-dim:#a8967a;        /* secondary text */
+  --ink-faint:#6b5c47;      /* disabled/etched-out text */
+  --accent:#e2622a;         /* retro remote orange: brand energy, focus, power-adjacent trim ONLY */
+  --power-red:#b4402f;      /* power cap legend: brick red */
+  --led-dim:#6a5b48;        /* light pipe idle: unlit phosphor */
+  --led-pulse:#f4ead2;      /* light pipe submitted: warm ivory swell */
+  --led-solid:#7fbf6a;      /* light pipe observed: green LED */
+  --led-amber:#e0a340;      /* light pipe unconfirmed: amber LED */
+  --led-red:#d4574a;        /* light pipe offline: red LED */
+  --label-plate:#c9bda2;    /* engraved brass label plates: oxidized brass */
+  --label-ink:#33281c;      /* label plate engraving ink */
+}
+
+*{margin:0;padding:0;box-sizing:border-box;}
+html{background:var(--page-bg);}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  color:var(--page-ink);
+  padding:48px 40px 80px;
+}
+
+/* ---------- rationale / doc header ---------- */
+.doc{max-width:1120px;margin:0 auto 44px;}
+.doc .kicker{font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--page-ink-dim);margin-bottom:10px;font-weight:700;}
+.doc h1{font-size:34px;font-weight:800;color:var(--ink);margin-bottom:16px;letter-spacing:-.01em;}
+.doc .rationale{font-size:15.5px;line-height:1.65;font-weight:400;color:var(--page-ink);max-width:780px;margin-bottom:20px;}
+.doc .facts{list-style:none;font-size:13px;color:var(--page-ink-dim);border-left:4px solid var(--accent);padding-left:16px;line-height:1.95;}
+.doc .facts b{color:var(--page-ink);font-weight:700;}
+
+/* ---------- stage ---------- */
+.stage{display:flex;flex-wrap:wrap;gap:56px;justify-content:center;align-items:flex-start;}
+.device{width:390px;}
+.device figcaption{margin-top:22px;font-size:12.5px;line-height:1.7;color:var(--page-ink-dim);border-top:2px solid var(--hairline);padding-top:12px;}
+.device figcaption b{color:var(--page-ink);font-weight:700;}
+
+/* ---------- phone frame: molded remote body ---------- */
+.phone{
+  width:390px;height:844px;border-radius:52px;position:relative;
+  background:
+    repeating-linear-gradient(45deg,rgba(255,255,255,.012) 0 2px,rgba(0,0,0,0) 2px 4px), /* texture: fine 2px diagonal weave, white at 1.2% */
+    linear-gradient(160deg,var(--shell-2) 0%,var(--shell) 46%,#150f0a 100%); /* #150f0a — body floor: deepest espresso */
+  border:1px solid var(--bezel-hi);
+  box-shadow:
+    inset 0 2px 0 rgba(255,235,200,.07),   /* molded top edge catch, warm white at 7% */
+    0 0 0 10px var(--bezel),
+    0 0 0 12px #100a06,                     /* #100a06 — outer frame line: near-black walnut */
+    0 40px 80px rgba(0,0,0,.8);
+  overflow:hidden;display:flex;flex-direction:column;
+}
+.speaker{
+  position:absolute;top:14px;left:50%;transform:translateX(-50%);
+  width:64px;height:6px;border-radius:3px;background:#0d0906;border:1px solid var(--hairline);z-index:30;
+  /* #0d0906 — speaker slot: black felt */
+}
+
+/* ---------- status bar ---------- */
+.statusbar{
+  height:46px;flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;
+  padding:8px 26px 0;font-size:12px;font-weight:700;color:var(--ink-dim);letter-spacing:.05em;
+}
+
+/* ---------- top bar ---------- */
+.topbar{flex:0 0 auto;height:60px;display:flex;align-items:center;justify-content:space-between;padding:0 18px;}
+.tvswitch{
+  display:flex;align-items:center;gap:9px;cursor:pointer;font-family:inherit;
+  background:linear-gradient(180deg,var(--cap-top-dark),#3a2d21); /* #3a2d21 — dark cap gradient floor */
+  border:1px solid #52402f;                                       /* #52402f — dark cap rim */
+  border-radius:14px;padding:9px 14px;color:var(--cap-ink-light);
+  font-size:14.5px;font-weight:700;letter-spacing:.02em;
+  box-shadow:0 3px 0 #241a12,0 5px 8px rgba(0,0,0,.5);
+  /* #241a12 reused as side wall — 3px of physical depth; shadow at 50% */
+  text-shadow:none;
+}
+.tvswitch .caret{color:var(--accent);font-size:12px;}
+.gear{
+  width:44px;height:44px;border-radius:12px;cursor:pointer;font-size:17px;color:var(--cap-ink-light);
+  background:linear-gradient(180deg,var(--cap-top-dark),#3a2d21);
+  border:1px solid #52402f;
+  box-shadow:0 3px 0 #241a12,0 5px 8px rgba(0,0,0,.5);
+}
+.gear:active{box-shadow:0 1px 0 #241a12;transform:translateY(2px);} /* 2mm travel */
+
+/* ---------- engraved one-time chip: brass label plate ---------- */
+.chip{
+  margin:6px 18px 0;display:flex;align-items:center;gap:10px;
+  background:linear-gradient(180deg,var(--label-plate),#b0a488); /* #b0a488 — plate shading floor */
+  border-radius:8px;padding:9px 12px;border:1px solid #8f8367;   /* #8f8367 — plate rim: darker brass */
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.4),0 2px 5px rgba(0,0,0,.45);
+  /* inset highlight white 40% · drop shadow 45% */
+  font-size:11.5px;font-weight:700;color:var(--label-ink);line-height:1.45;
+  letter-spacing:.02em;text-transform:none;
+}
+.chip .led{width:9px;height:9px;border-radius:50%;background:var(--led-amber);box-shadow:0 0 6px rgba(224,163,64,.8);flex:0 0 auto;} /* amber LED glow rgba #e0a340 80% */
+.chip .x{margin-left:auto;color:#6b5f47;font-size:14px;font-weight:800;} /* #6b5f47 — plate screw-ink for dismiss */
+
+/* ---------- hero (big-pad mode) ---------- */
+.hero{flex:1;display:flex;flex-direction:column;padding:8px 20px 0;}
+
+/* floating function-key row: chunky caps hovering above the pad */
+.fnrow{display:flex;justify-content:center;gap:12px;padding:14px 0 18px;}
+.cap{
+  width:66px;height:58px;border-radius:14px;cursor:pointer;font-family:inherit;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+  background:linear-gradient(180deg,var(--cap-top) 0%,#d9cdb2 100%); /* #d9cdb2 — bone cap gradient floor */
+  border:1px solid #f4ecd8;                                          /* #f4ecd8 — cap top rim highlight */
+  color:var(--cap-ink);
+  box-shadow:
+    0 4px 0 var(--cap-side),            /* side wall: 4px of bone plastic */
+    0 7px 12px rgba(0,0,0,.55);         /* contact shadow at 55% */
+  font-size:17px;font-weight:700;
+}
+.cap small{font-size:8px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#7a6a52;} /* #7a6a52 — engraved micro-label ink */
+.cap:active{box-shadow:0 1px 0 var(--cap-side),0 2px 4px rgba(0,0,0,.5);transform:translateY(3px);} /* key travel */
+.cap.dark{
+  background:linear-gradient(180deg,var(--cap-top-dark),#3b2e22); /* #3b2e22 — dark cap gradient floor */
+  border:1px solid #57442f; color:var(--cap-ink-light);            /* #57442f — dark cap rim */
+  box-shadow:0 4px 0 var(--cap-side-dark),0 7px 12px rgba(0,0,0,.55);
+}
+.cap.dark small{color:#a3906f;} /* #a3906f — dark-cap micro-label */
+.cap.power-cap{color:#e8b9ae;}  /* #e8b9ae — power glyph on dark cap: warm rose so brick-red reads in the dark */
+.cap.power-cap .g{color:var(--power-red);text-shadow:0 0 8px rgba(180,64,47,.7);} /* power LED halo rgba #b4402f 70% */
+
+/* the routed groove + light-pipe ring + textured swipe pad */
+.padwrap{display:flex;justify-content:center;padding:4px 0;}
+.groove-ring{
+  width:308px;height:308px;border-radius:34px;background:var(--groove);
+  padding:7px;box-shadow:inset 0 2px 6px rgba(0,0,0,.85),0 1px 0 rgba(255,235,200,.06);
+  /* routed channel: inner shadow 85%, floor highlight 6% */
+}
+/* light pipe — idle state: dim unlit phosphor line */
+.lightpipe{
+  width:100%;height:100%;border-radius:28px;border:3px solid var(--led-dim);
+  box-shadow:0 0 4px rgba(106,91,72,.4); /* faint idle phosphor rgba #6a5b48 40% */
+  padding:10px;
+}
+/* light pipe — pressed variant would glow: see legend; class kept for documentation */
+.lightpipe.pulse{border-color:var(--led-pulse);box-shadow:0 0 14px 4px rgba(244,234,210,.5),0 0 34px 10px rgba(244,234,210,.18);} /* rgba #f4ead2 50% / 18% */
+
+.pad{
+  width:100%;height:100%;border-radius:22px;position:relative;
+  background:
+    repeating-linear-gradient(0deg,rgba(255,255,255,.02) 0 1px,rgba(0,0,0,0) 1px 5px),   /* etched horizontal grain, white 2% */
+    repeating-linear-gradient(90deg,rgba(0,0,0,.05) 0 1px,rgba(0,0,0,0) 1px 5px),        /* cross grain, black 5% */
+    radial-gradient(circle at 50% 38%,#4d3c2c 0%,#3a2c1f 52%,#2b2015 100%);
+    /* #4d3c2c → #3a2c1f → #2b2015 — pad leatherette: warm brown dome shading */
+  border:1px solid #5a4632; /* #5a4632 — pad bevel rim */
+  box-shadow:inset 0 2px 3px rgba(255,230,190,.12),inset 0 -4px 8px rgba(0,0,0,.55),0 6px 14px rgba(0,0,0,.5);
+  /* bevel: top catch 12%, bottom shade 55%, contact shadow 50% */
+  display:grid;place-items:center;
+}
+.pad .etch{
+  position:absolute;inset:0;display:grid;
+  grid-template-columns:1fr 1fr 1fr;grid-template-rows:1fr 1fr 1fr;
+  color:#9c8563; /* #9c8563 — etched direction glyphs: stamped khaki */
+  font-size:20px;font-weight:800;text-align:center;
+}
+.pad .etch span{align-self:center;justify-self:center;opacity:.75;text-shadow:0 1px 0 rgba(0,0,0,.6);} /* engraved shadow 60% */
+.pad .etch .e-up{grid-area:1/2;} .pad .etch .e-left{grid-area:2/1;}
+.pad .etch .e-right{grid-area:2/3;} .pad .etch .e-down{grid-area:3/2;}
+/* center OK dome: glossy physical button */
+.ok-dome{
+  grid-area:2/2;width:96px;height:96px;border-radius:50%;border:none;cursor:pointer;
+  background:
+    radial-gradient(circle at 34% 26%,rgba(255,250,235,.5) 0%,rgba(255,250,235,0) 42%), /* gloss highlight, warm white 50% */
+    linear-gradient(180deg,var(--cap-top) 0%,#cfc2a4 78%,var(--cap-side) 100%); /* #cfc2a4 — dome mid-tone */
+  color:var(--cap-ink);font-size:15px;font-weight:800;letter-spacing:.1em;font-family:inherit;
+  box-shadow:
+    0 5px 0 #8f836a,               /* #8f836a — dome side wall: shaded brass-bone */
+    0 9px 16px rgba(0,0,0,.6),     /* contact shadow 60% */
+    inset 0 -3px 6px rgba(0,0,0,.12);
+}
+.ok-dome small{display:block;font-size:8px;letter-spacing:.14em;color:#7a6a52;margin-top:3px;} /* #7a6a52 reused micro-ink */
+.ok-dome:active{transform:translateY(4px);box-shadow:0 1px 0 #8f836a,0 3px 6px rgba(0,0,0,.55);}
+.pad-instruct{
+  position:absolute;bottom:12px;left:0;right:0;text-align:center;
+  font-size:9.5px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#7f6c50; /* #7f6c50 — stamped instruction ink */
+}
+
+/* utility shelf: volume rocker (physical slider caps) + transport + power */
+.shelf{
+  margin-top:16px;background:var(--plate);border:1px solid var(--hairline);border-radius:16px;
+  padding:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;
+  box-shadow:inset 0 2px 5px rgba(0,0,0,.5),0 1px 0 rgba(255,235,200,.05);
+  /* etched control plate: recessed shadow 50%, top catch 5% */
+}
+.vbank{display:flex;gap:8px;}
+.vcap{
+  width:56px;height:50px;border-radius:12px;cursor:pointer;font-size:15px;font-weight:700;font-family:inherit;
+  background:linear-gradient(180deg,var(--cap-top-dark),#3b2e22);
+  border:1px solid #57442f;color:var(--cap-ink-light);
+  box-shadow:0 4px 0 var(--cap-side-dark),0 6px 10px rgba(0,0,0,.5);
+}
+.vcap:active{transform:translateY(3px);box-shadow:0 1px 0 var(--cap-side-dark);}
+.shelf .duo{display:flex;gap:10px;}
+.tcap{
+  width:56px;height:50px;border-radius:12px;cursor:pointer;font-size:16px;font-family:inherit;
+  background:linear-gradient(180deg,var(--cap-top),#d9cdb2);
+  border:1px solid #f4ecd8;color:var(--cap-ink);
+  box-shadow:0 4px 0 var(--cap-side),0 6px 10px rgba(0,0,0,.5);
+}
+.tcap:active{transform:translateY(3px);box-shadow:0 1px 0 var(--cap-side);}
+.tcap.pw{color:var(--power-red);}
+
+/* ---------- bottom sheet: wooden shelf of caps ---------- */
+.launcher{
+  flex:0 0 auto;margin-top:14px;padding:10px 12px 26px;
+  background:linear-gradient(180deg,#241a11,var(--shell)); /* #241a11 — shelf top edge */
+  border-top:2px solid var(--hairline);
+  border-radius:20px 20px 0 0;
+  box-shadow:0 -4px 10px rgba(0,0,0,.45); /* shelf lip shadow 45% */
+}
+.grabber{width:44px;height:5px;border-radius:3px;background:var(--cap-side-dark);margin:0 auto 12px;box-shadow:inset 0 1px 1px rgba(0,0,0,.5);}
+.launch-row{display:flex;justify-content:space-between;padding:0 2px;}
+.launch{background:none;border:none;cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:6px;width:56px;}
+.launch .kcap{
+  width:46px;height:42px;border-radius:11px;display:grid;place-items:center;font-size:16px;
+  background:linear-gradient(180deg,var(--cap-top-dark),#3a2d21);
+  border:1px solid #57442f;color:var(--cap-ink-light);
+  box-shadow:0 3px 0 var(--cap-side-dark),0 5px 8px rgba(0,0,0,.5);
+}
+.launch small{font-size:8.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-dim);}
+.launch:active .kcap{transform:translateY(2px);box-shadow:0 1px 0 var(--cap-side-dark);}
+
+/* ---------- TVs management screen ---------- */
+.mgmt{flex:1;padding:14px 20px 0;display:flex;flex-direction:column;}
+.mgmt h2{font-size:22px;font-weight:800;color:var(--ink);letter-spacing:-.01em;margin-bottom:4px;}
+.mgmt .sub{font-size:12.5px;color:var(--ink-dim);margin-bottom:20px;}
+.tvcards{display:flex;flex-direction:column;gap:16px;}
+.tvc{
+  border-radius:16px;padding:16px;position:relative;
+  background:linear-gradient(180deg,var(--shell-2),#221910); /* #221910 — card floor */
+  border:1px solid var(--hairline);
+  box-shadow:0 4px 0 #120c07,0 8px 16px rgba(0,0,0,.5); /* #120c07 — card side wall: card is a slab */
+}
+.tvc .row{display:flex;align-items:center;gap:10px;}
+.tvc .name{font-size:16px;font-weight:800;color:var(--ink);}
+.tvc .led{width:11px;height:11px;border-radius:50%;margin-left:auto;flex:0 0 auto;}
+.led.on{background:var(--led-solid);box-shadow:0 0 8px rgba(127,191,106,.8);}   /* green LED glow rgba #7fbf6a 80% */
+.led.warn{background:var(--led-amber);box-shadow:0 0 8px rgba(224,163,64,.7);}  /* amber LED glow rgba #e0a340 70% */
+.tvc .meta{font-size:11.5px;color:var(--ink-dim);margin-top:5px;line-height:1.55;}
+.plate-label{
+  display:inline-block;margin-top:10px;background:linear-gradient(180deg,var(--label-plate),#b0a488);
+  border:1px solid #8f8367;border-radius:6px;padding:4px 10px;
+  font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--label-ink);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.4),0 2px 4px rgba(0,0,0,.4);
+}
+.tvc .honest{font-size:12px;color:var(--ink-dim);line-height:1.6;margin-top:10px;}
+.tvc .actions{display:flex;gap:10px;margin-top:14px;}
+.mbtn{
+  flex:1;height:46px;border-radius:12px;cursor:pointer;font-family:inherit;
+  font-size:13px;font-weight:800;letter-spacing:.04em;
+  background:linear-gradient(180deg,var(--cap-top),#d9cdb2);
+  border:1px solid #f4ecd8;color:var(--cap-ink);
+  box-shadow:0 4px 0 var(--cap-side),0 6px 10px rgba(0,0,0,.5);
+}
+.mbtn:active{transform:translateY(3px);box-shadow:0 1px 0 var(--cap-side);}
+.mbtn.ghost{
+  background:linear-gradient(180deg,var(--cap-top-dark),#3a2d21);
+  border:1px solid #57442f;color:var(--cap-ink-light);
+  box-shadow:0 4px 0 var(--cap-side-dark),0 6px 10px rgba(0,0,0,.5);
+}
+.addcap{
+  margin-top:26px;height:60px;border-radius:16px;cursor:pointer;font-family:inherit;
+  font-size:15px;font-weight:800;letter-spacing:.05em;color:#2a1c10; /* #2a1c10 — ink on orange cap */
+  background:linear-gradient(180deg,#ef7a42,var(--accent) 60%,#c2531f);
+  /* #ef7a42 top gloss · --accent #e2622a body · #c2531f floor — the one orange cap in the product */
+  border:1px solid #f49a6a; /* #f49a6a — orange cap rim highlight */
+  box-shadow:0 5px 0 #8c3a15,0 9px 16px rgba(0,0,0,.55); /* #8c3a15 — orange cap side wall: burnt orange */
+}
+.addcap:active{transform:translateY(4px);box-shadow:0 1px 0 #8c3a15;}
+
+/* ---------- LED legend (light-pipe states) ---------- */
+.legend{max-width:1120px;margin:64px auto 0;border-top:2px solid var(--hairline);padding-top:28px;}
+.legend h2{font-size:13px;letter-spacing:.2em;text-transform:uppercase;color:var(--page-ink-dim);font-weight:800;margin-bottom:22px;}
+.legend .states{display:flex;flex-wrap:wrap;gap:34px;}
+.lstate{display:flex;flex-direction:column;align-items:center;gap:12px;width:116px;}
+.lpipe{
+  width:56px;height:56px;border-radius:16px;background:var(--groove);padding:5px;
+  box-shadow:inset 0 2px 5px rgba(0,0,0,.8);
+}
+.lpipe i{display:block;width:100%;height:100%;border-radius:11px;border:3px solid var(--led-dim);}
+.lpipe.p-pulse i{border-color:var(--led-pulse);box-shadow:0 0 10px 3px rgba(244,234,210,.5);} /* rgba #f4ead2 */
+.lpipe.p-solid i{border-color:var(--led-solid);box-shadow:0 0 9px 2px rgba(127,191,106,.55);} /* rgba #7fbf6a */
+.lpipe.p-amber i{border-color:var(--led-amber);box-shadow:0 0 9px 2px rgba(224,163,64,.55);} /* rgba #e0a340 */
+.lpipe.p-red i{border-color:var(--led-red);box-shadow:0 0 10px 3px rgba(212,87,74,.6);} /* rgba #d4574a */
+.lstate small{font-size:11px;color:var(--page-ink-dim);text-align:center;line-height:1.5;}
+.lstate small b{display:block;color:var(--page-ink);font-weight:800;}
+</style>
+</head>
+<body>
+
+<header class="doc">
+  <div class="kicker">UniRem · UX Direction 3 of 4</div>
+  <h1>Tactile Retro</h1>
+  <p class="rationale">
+    A love letter to the remote you could operate without looking: bone key caps with real
+    4mm side walls that sink 2–3px under your thumb, an etched leatherette swipe pad seated in a
+    routed groove, and the honesty ring reimagined as an LED light pipe glowing in that groove.
+    Every control announces its affordance physically — chunky, playful, zero abstraction — while
+    staying dark-first espresso plastic for a 9:47 PM living room.
+  </p>
+  <ul class="facts">
+    <li><b>Hero mode shown:</b> (b) big-pad — large textured swipe surface (swipe = D-pad, tap = OK) with floating function-key row. Mode (a) thumb-arc exists as the alternate hero.</li>
+    <li><b>Ring states depicted:</b> Phone 1 — light pipe idle dim (pressed key shown mid-travel, pulse implied); LED legend below shows all five states as groove-seated pipes.</li>
+    <li><b>Secondary screen:</b> TVs management — "Living Room TV ●" and "Bedroom TV (2014) — Unsupported · Best-effort".</li>
+    <li><b>State variant:</b> unsupported label (brass plate + honest note on the 2014 TV card).</li>
+  </ul>
+</header>
+
+<main class="stage">
+
+  <!-- ============ PHONE 1 — HERO, BIG-PAD MODE, LIGHT PIPE IDLE ============ -->
+  <figure class="device">
+    <div class="phone">
+      <div class="speaker"></div>
+      <div class="statusbar"><span>▂▄▆ LTE</span><span>9:47 ▮▮▮▯ 84%</span></div>
+      <div class="topbar">
+        <button class="tvswitch">📺 Living Room TV <span class="caret">▾</span></button>
+        <button class="gear" title="Settings">⚙</button>
+      </div>
+
+      <!-- one-time unsupported-key chip, as an engraved brass plate -->
+      <div class="chip">
+        <span class="led"></span>
+        <span>This TV doesn't report Play — it may still work.</span>
+        <span class="x">×</span>
+      </div>
+
+      <div class="hero">
+        <!-- floating function-key row: chunky caps hovering over the pad -->
+        <div class="fnrow">
+          <button class="cap">⌂<small>Home</small></button>
+          <button class="cap">↩<small>Back</small></button>
+          <button class="cap">🎬<small>Apps</small></button>
+          <button class="cap">🔍<small>Search</small></button>
+          <button class="cap dark power-cap"><span class="g">⏻</span><small>Power</small></button>
+        </div>
+
+        <!-- routed groove + light pipe (idle) + textured swipe pad -->
+        <div class="padwrap">
+          <div class="groove-ring">
+            <div class="lightpipe" title="Light pipe state: idle (dim)">
+              <div class="pad">
+                <div class="etch">
+                  <span class="e-up">▲</span><span class="e-left">◀</span>
+                  <button class="ok-dome" style="grid-area:2/2;">OK<small>TAP</small></button>
+                  <span class="e-right">▶</span><span class="e-down">▼</span>
+                </div>
+                <div class="pad-instruct">Swipe = arrows · Tap pad = OK</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- utility shelf: physical volume bank + transport + power -->
+        <div class="shelf">
+          <div class="vbank">
+            <button class="vcap">🔉−</button>
+            <button class="vcap">🔇</button>
+            <button class="vcap">🔉＋</button>
+          </div>
+          <div class="duo">
+            <button class="tcap" title="Play / Pause">⏯</button>
+            <button class="tcap pw" title="Power">⏻</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="launcher">
+        <div class="grabber"></div>
+        <div class="launch-row">
+          <button class="launch"><span class="kcap">⌨</span><small>Text</small></button>
+          <button class="launch"><span class="kcap">🎤</span><small>Voice</small></button>
+          <button class="launch"><span class="kcap">👆</span><small>Pad</small></button>
+          <button class="launch"><span class="kcap">📶</span><small>Cast</small></button>
+          <button class="launch"><span class="kcap">🪞</span><small>Mirror</small></button>
+          <button class="launch"><span class="kcap">⏻</span><small>Wake</small></button>
+        </div>
+      </div>
+    </div>
+    <figcaption>
+      <b>Hero — big-pad mode (b).</b> The etched swipe surface is the D-pad; the glossy center dome
+      is OK. Light pipe state: <b>idle (dim)</b> — on each keypress it swells warm ivory for ~200ms
+      (pulse = submitted) then settles; caps travel 3px with a shrinking shadow. The brass plate is
+      the one-time unsupported-key chip. Function-key row floats above as individual caps.
+    </figcaption>
+  </figure>
+
+  <!-- ============ PHONE 2 — SECONDARY: TVS MANAGEMENT ============ -->
+  <figure class="device">
+    <div class="phone">
+      <div class="speaker"></div>
+      <div class="statusbar"><span>▂▄▆ LTE</span><span>9:47 ▮▮▮▯ 84%</span></div>
+      <div class="topbar">
+        <button class="tvswitch">📺 Your TVs <span class="caret">▾</span></button>
+        <button class="gear" title="Settings">⚙</button>
+      </div>
+
+      <div class="mgmt">
+        <h2>Your TVs</h2>
+        <p class="sub">Two found on "Home-WiFi-5G". Cards show what each TV can honestly do.</p>
+
+        <div class="tvcards">
+          <!-- supported TV -->
+          <div class="tvc">
+            <div class="row">
+              <span class="name">Living Room TV</span>
+              <span class="led on" title="Connected — observed"></span>
+            </div>
+            <div class="meta">Samsung UE55NU8000 · Tizen 5.0 · Connected</div>
+            <span class="plate-label">Full control · confirms keys</span>
+          </div>
+
+          <!-- unsupported TV: honest best-effort label -->
+          <div class="tvc">
+            <div class="row">
+              <span class="name">Bedroom TV (2014)</span>
+              <span class="led warn" title="Best-effort — cannot confirm"></span>
+            </div>
+            <div class="meta">Samsung UE32F5000 · pre-Tizen · no confirmation channel</div>
+            <span class="plate-label">Unsupported · Best-effort</span>
+            <p class="honest">
+              We can try power, volume, and channel keys. This TV can't tell us whether they
+              landed, so the ring will stay amber here — that's the TV's limit, not a bug.
+            </p>
+            <div class="actions">
+              <button class="mbtn">Open remote</button>
+              <button class="mbtn ghost">Forget TV</button>
+            </div>
+          </div>
+        </div>
+
+        <button class="addcap">＋ Add a TV</button>
+      </div>
+
+      <div class="launcher">
+        <div class="grabber"></div>
+        <div class="launch-row">
+          <button class="launch"><span class="kcap">⌨</span><small>Text</small></button>
+          <button class="launch"><span class="kcap">🎤</span><small>Voice</small></button>
+          <button class="launch"><span class="kcap">👆</span><small>Pad</small></button>
+          <button class="launch"><span class="kcap">📶</span><small>Cast</small></button>
+          <button class="launch"><span class="kcap">🪞</span><small>Mirror</small></button>
+          <button class="launch"><span class="kcap">⏻</span><small>Wake</small></button>
+        </div>
+      </div>
+    </div>
+    <figcaption>
+      <b>Secondary screen — TVs management.</b> Cards are physical slabs with side walls. The
+      2014 Bedroom TV carries the <b>unsupported label</b> as an engraved brass plate plus a plain
+      explanation of exactly which keys are best-effort and why the ring stays amber on that TV.
+      Green LED = connected and confirming; amber LED = best-effort. One orange "Add a TV" cap —
+      the only saturated plastic in the product.
+    </figcaption>
+  </figure>
+
+</main>
+
+<!-- ============ LIGHT PIPE LEGEND — ALL FIVE STATES ============ -->
+<section class="legend">
+  <h2>Light-pipe ring — all five states, seated in the routed groove</h2>
+  <div class="states">
+    <div class="lstate"><span class="lpipe"><i></i></span><small><b>Idle</b>dim unlit phosphor — groove reads as decoration</small></div>
+    <div class="lstate"><span class="lpipe p-pulse"><i></i></span><small><b>Submitted</b>ivory swell ~200ms, like a camera flash tube</small></div>
+    <div class="lstate"><span class="lpipe p-solid"><i></i></span><small><b>Observed</b>green LED holds — TV confirmed the key</small></div>
+    <div class="lstate"><span class="lpipe p-amber"><i></i></span><small><b>Unconfirmed</b>amber LED — sent, no answer yet</small></div>
+    <div class="lstate"><span class="lpipe p-red"><i></i></span><small><b>Offline</b>red LED + banner: "TV didn't answer — retry?"</small></div>
+  </div>
+</section>
+
+</body>
+</html>

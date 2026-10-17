@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UniRem — Direction 2 — Samsung Native</title>
+<style>
+/* ============================================================
+   DIRECTION 2 — "SAMSUNG NATIVE"
+   Register: trustworthy, conventional, first-party. Tizen/SmartThings-
+   adjacent blue accent; key shapes and spacing echo the Samsung
+   remote (circular D-pad, pill keys, segmented rocker). A user who
+   owns the physical remote needs zero learning here.
+   Density: medium (Samsung-remote spacing). Type weight: 400–600.
+   Motion implication: short system-like snaps — 150ms ease-out key
+   flashes, 300ms ring pulse, no bounce, no flourish.
+   HERO MODE SHOWN: (a) thumb-arc. (Mode (b) big-pad exists as the
+   alternate hero and is not depicted here.)
+   RING STATES DEPICTED: Phone 1 = solid settle (observed);
+   Phone 2 = amber (unconfirmed); legend shows all five.
+   ALSO DEPICTED: 👆 Pad launcher slot disabled (failed pointer
+   probe) with its one-time explanation chip.
+   ============================================================ */
+
+:root{
+  /* ---- palette: every hex documented ---- */
+  --page-bg:#05080e;        /* page canvas: blue-black, darker than the phone so devices pop */
+  --page-ink:#a9b8cc;       /* page copy: cool gray-blue */
+  --page-ink-dim:#66788f;   /* page captions: deeper cool gray */
+  --bezel:#10161f;          /* phone bezel: graphite blue */
+  --bezel-edge:#26303e;     /* bezel rim: faint cool highlight */
+  --screen:#09111d;         /* screen background: Samsung dark-theme navy black */
+  --surface:#101b2c;        /* panels/sheet: lifted navy */
+  --surface-2:#182740;      /* key faces: one step up, blue-tinted */
+  --key-edge:#24385a;       /* key rim: cool border, reads as Samsung hardware */
+  --hairline:#1a2942;       /* hairline dividers */
+  --ink:#eaf2fb;            /* primary text: cool near-white */
+  --ink-dim:#8fa8c4;        /* secondary text: muted blue-gray */
+  --ink-faint:#4d607a;      /* disabled text/glyphs */
+  --accent:#3f9bff;         /* Tizen/SmartThings-adjacent blue: active tab, caret, focus rings */
+  --accent-deep:#1d6fd0;    /* pressed blue: darker state for key flash */
+  --ring-idle:#2a3a52;      /* ring idle: dim navy graphite */
+  --ring-pulse:#7cc0ff;     /* ring pulse (submitted): light blue flash */
+  --ring-solid:#35c483;     /* ring settle (observed): Samsung-ish confirmation green */
+  --ring-amber:#f2b33d;     /* ring unconfirmed: amber */
+  --ring-red:#ef5b5b;       /* ring offline: red */
+  --toast-bg:#1c2c47;       /* helper toast under pad: raised navy */
+}
+
+*{margin:0;padding:0;box-sizing:border-box;}
+html{background:var(--page-bg);}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  color:var(--page-ink);
+  padding:48px 40px 80px;
+}
+
+/* ---------- rationale / doc header ---------- */
+.doc{max-width:1080px;margin:0 auto 44px;}
+.doc .kicker{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--page-ink-dim);margin-bottom:10px;}
+.doc h1{font-size:32px;font-weight:600;color:var(--ink);margin-bottom:16px;letter-spacing:-.01em;}
+.doc .rationale{font-size:15.5px;line-height:1.65;font-weight:400;color:var(--page-ink);max-width:760px;margin-bottom:20px;}
+.doc .facts{list-style:none;font-size:13px;color:var(--page-ink-dim);border-left:3px solid var(--accent-deep);padding-left:16px;line-height:1.9;}
+.doc .facts b{color:var(--page-ink);font-weight:600;}
+
+/* ---------- stage ---------- */
+.stage{display:flex;flex-wrap:wrap;gap:52px;justify-content:center;align-items:flex-start;}
+.device{width:390px;}
+.device figcaption{margin-top:20px;font-size:12.5px;line-height:1.7;color:var(--page-ink-dim);border-top:1px solid #16202e;padding-top:12px;}
+  /* #16202e — caption rule: page-level hairline */
+.device figcaption b{color:var(--page-ink);font-weight:600;}
+
+/* ---------- phone frame ---------- */
+.phone{
+  width:390px;height:844px;border-radius:42px;position:relative;
+  background:var(--screen);
+  border:1px solid var(--bezel-edge);
+  box-shadow:0 0 0 10px var(--bezel),0 0 0 11px #060a10,0 36px 72px rgba(0,0,0,.7);
+  /* #060a10 — outer frame line, near-black navy */
+  overflow:hidden;display:flex;flex-direction:column;
+}
+.camera{
+  position:absolute;top:16px;left:50%;transform:translateX(-50%);
+  width:12px;height:12px;border-radius:50%;background:#04070c;border:1px solid #1a2331;z-index:30;
+  /* #04070c punch-hole black · #1a2331 lens rim */
+}
+
+/* ---------- status bar ---------- */
+.statusbar{
+  height:44px;flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;
+  padding:10px 24px 0;font-size:12px;color:var(--ink-dim);font-weight:500;
+}
+
+/* ---------- top bar ---------- */
+.topbar{
+  flex:0 0 auto;height:58px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;
+}
+.tvswitch{
+  display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--key-edge);
+  border-radius:22px;padding:8px 16px 8px 12px;color:var(--ink);font-size:16px;font-weight:500;
+  cursor:pointer;font-family:inherit;
+}
+.tvswitch .caret{color:var(--accent);font-size:12px;}
+.tvswitch .dot{width:7px;height:7px;border-radius:50%;background:var(--ring-solid);}
+.gear{
+  width:40px;height:40px;border-radius:50%;background:var(--surface);border:1px solid var(--key-edge);
+  color:var(--ink-dim);font-size:17px;cursor:pointer;
+}
+.gear:hover{color:var(--accent);border-color:var(--accent);}
+
+/* ---------- one-time chips ---------- */
+.chip{
+  margin:2px 16px 0;display:flex;align-items:center;gap:9px;
+  background:var(--surface);border:1px solid var(--key-edge);border-radius:12px;
+  padding:9px 12px;font-size:12.5px;color:var(--ink-dim);line-height:1.45;
+}
+.chip .mark{color:var(--ring-amber);font-size:11px;}
+.chip .x{margin-left:auto;color:var(--ink-faint);font-size:14px;cursor:pointer;}
+.chip.blue .mark{color:var(--accent);}
+
+/* ---------- hero ---------- */
+.hero{flex:1;display:flex;flex-direction:column;}
+.spacer{flex:1;}
+
+/* side rails: volume rocker left, power right — Samsung remote muscle memory */
+.rails{display:flex;justify-content:space-between;padding:0 14px;margin-bottom:6px;}
+.vrocker{
+  display:flex;flex-direction:column;background:var(--surface-2);border:1px solid var(--key-edge);
+  border-radius:26px;overflow:hidden;width:52px;
+}
+.vrocker button{
+  background:none;border:none;color:var(--ink);height:46px;font-size:15px;cursor:pointer;font-family:inherit;
+}
+.vrocker button+button{border-top:1px solid var(--key-edge);}
+.vrocker button:hover{background:var(--accent-deep);}
+.rail-right{display:flex;flex-direction:column;gap:12px;align-items:center;}
+.ckey{
+  width:52px;height:52px;border-radius:50%;background:var(--surface-2);border:1px solid var(--key-edge);
+  color:var(--ink);font-size:17px;cursor:pointer;display:grid;place-items:center;
+}
+.ckey.power{color:var(--ring-red);}
+.ckey:hover{border-color:var(--accent);}
+
+/* secondary key row — pill keys, Samsung remote density */
+.keyrow{display:flex;justify-content:center;gap:10px;padding:12px 16px 4px;}
+.pill{
+  background:var(--surface-2);border:1px solid var(--key-edge);border-radius:24px;
+  color:var(--ink);height:48px;padding:0 18px;display:flex;align-items:center;gap:7px;
+  font-size:13.5px;font-weight:500;cursor:pointer;font-family:inherit;
+}
+.pill:hover{border-color:var(--accent);}
+.pill .g{font-size:15px;}
+
+/* ---------- ring + D-pad ---------- */
+.ringwrap{display:flex;justify-content:center;padding:16px 0 10px;}
+.ring{width:250px;height:250px;border-radius:50%;display:grid;place-items:center;position:relative;}
+.ring.settle{
+  border:2px solid var(--ring-solid);
+  box-shadow:0 0 14px rgba(53,196,131,.25); /* rgba of --ring-solid #35c483 at 25% */
+}
+.ring.amber{
+  border:2px solid var(--ring-amber);
+  box-shadow:0 0 14px rgba(242,179,61,.25); /* rgba of --ring-amber #f2b33d at 25% */
+}
+.dpad{
+  display:grid;grid-template-columns:66px 80px 66px;grid-template-rows:62px 74px 62px;
+  gap:5px;place-items:center;
+}
+.dpad button{
+  background:var(--surface-2);border:1px solid var(--key-edge);color:var(--ink);
+  cursor:pointer;font-family:inherit;
+}
+.dpad .nav{width:62px;height:58px;border-radius:18px;font-size:16px;}
+.dpad .up{grid-column:2;grid-row:1;}
+.dpad .left{grid-column:1;grid-row:2;}
+.dpad .right{grid-column:3;grid-row:2;}
+.dpad .down{grid-column:2;grid-row:3;}
+.dpad .ok{
+  grid-column:2;grid-row:2;width:74px;height:74px;border-radius:50%;
+  font-size:13px;font-weight:600;letter-spacing:.06em;color:var(--accent);
+  border:2px solid var(--accent-deep);background:#132034; /* #132034 — OK face: deeper blue well */
+}
+.dpad .ok:hover{background:var(--accent-deep);color:var(--ink);}
+
+/* helper toast under the pad (amber state explanation) */
+.toast{
+  margin:2px auto 10px;background:var(--toast-bg);border:1px solid var(--key-edge);border-radius:20px;
+  padding:8px 18px;font-size:12.5px;color:var(--ink-dim);display:flex;gap:8px;align-items:center;width:max-content;
+}
+.toast .lamp{width:8px;height:8px;border-radius:50%;background:var(--ring-amber);}
+
+/* ---------- bottom sheet ---------- */
+.launcher{
+  flex:0 0 auto;background:var(--surface);border-top:1px solid var(--hairline);
+  border-radius:22px 22px 0 0;padding:8px 8px 24px;
+}
+.grabber{width:40px;height:4px;border-radius:2px;background:var(--key-edge);margin:2px auto 12px;}
+.launch-row{display:flex;justify-content:space-between;padding:0 8px;}
+.launch{
+  background:none;border:none;cursor:pointer;font-family:inherit;
+  display:flex;flex-direction:column;align-items:center;gap:6px;width:54px;
+}
+.launch .ic{
+  width:46px;height:46px;border-radius:14px;background:var(--surface-2);border:1px solid var(--key-edge);
+  display:grid;place-items:center;font-size:17px;color:var(--ink);
+}
+.launch small{font-size:10px;color:var(--ink-dim);font-weight:500;}
+.launch:hover .ic{border-color:var(--accent);}
+/* Pad slot: failed pointer probe → disabled, dashed, dimmed */
+.launch.disabled .ic{
+  border:1px dashed var(--ink-faint);background:none;color:var(--ink-faint);opacity:.6;
+}
+.launch.disabled small{color:var(--ink-faint);}
+
+/* ---------- pairing flow screen ---------- */
+.pair{flex:1;display:flex;flex-direction:column;padding:20px 24px 0;}
+.pair h2{font-size:22px;font-weight:600;color:var(--ink);margin-bottom:10px;letter-spacing:-.01em;}
+.pair .lede{font-size:14px;color:var(--ink-dim);line-height:1.6;margin-bottom:26px;}
+.steps{display:flex;flex-direction:column;gap:14px;margin-bottom:28px;}
+.step{display:flex;gap:14px;align-items:flex-start;}
+.step .n{
+  flex:0 0 auto;width:26px;height:26px;border-radius:50%;background:var(--accent-deep);color:var(--ink);
+  font-size:13px;font-weight:600;display:grid;place-items:center;margin-top:1px;
+}
+.step p{font-size:13.5px;color:var(--ink);line-height:1.55;}
+.step p span{display:block;color:var(--ink-dim);font-size:12.5px;margin-top:2px;}
+.tvcard{
+  background:var(--surface);border:1px solid var(--key-edge);border-radius:16px;padding:18px;
+  margin-bottom:14px;
+}
+.tvcard .name{font-size:16px;font-weight:600;color:var(--ink);margin-bottom:4px;}
+.tvcard .meta{font-size:12.5px;color:var(--ink-dim);line-height:1.6;}
+.tofu{
+  border-left:3px solid var(--accent);background:var(--surface);border-radius:0 12px 12px 0;
+  padding:13px 15px;font-size:12.5px;color:var(--ink-dim);line-height:1.6;margin-bottom:26px;
+}
+.tofu b{color:var(--ink);font-weight:600;display:block;margin-bottom:3px;font-size:13px;}
+.pair-actions{display:flex;flex-direction:column;gap:10px;margin-top:auto;padding-bottom:26px;}
+.btn-primary{
+  height:52px;border-radius:26px;border:none;background:var(--accent);color:#04121f;
+  /* #04121f — button ink: near-black navy on blue for contrast */
+  font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;
+}
+.btn-primary:hover{background:#5aa9ff;} /* #5aa9ff — hover: one step lighter blue */
+.btn-ghost{
+  height:48px;border-radius:24px;border:1px solid var(--key-edge);background:none;color:var(--ink-dim);
+  font-size:14px;font-weight:500;cursor:pointer;font-family:inherit;
+}
+.btn-ghost:hover{color:var(--ink);border-color:var(--ink-dim);}
+
+/* ---------- ring legend ---------- */
+.legend{max-width:1080px;margin:64px auto 0;border-top:1px solid #16202e;padding-top:28px;}
+  /* #16202e — legend rule */
+.legend h2{font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--page-ink-dim);font-weight:600;margin-bottom:22px;}
+.legend .states{display:flex;flex-wrap:wrap;gap:34px;}
+.lstate{display:flex;flex-direction:column;align-items:center;gap:10px;width:112px;}
+.lring{width:54px;height:54px;border-radius:50%;}
+.lring.l-idle{border:2px solid var(--ring-idle);}
+.lring.l-pulse{border:2px solid var(--ring-pulse);box-shadow:0 0 12px 2px rgba(124,192,255,.3);} /* rgba #7cc0ff */
+.lring.l-solid{border:2px solid var(--ring-solid);box-shadow:0 0 10px 2px rgba(53,196,131,.3);} /* rgba #35c483 */
+.lring.l-amber{border:2px solid var(--ring-amber);box-shadow:0 0 10px 2px rgba(242,179,61,.3);} /* rgba #f2b33d */
+.lring.l-red{border:2px solid var(--ring-red);box-shadow:0 0 12px 2px rgba(239,91,91,.3);} /* rgba #ef5b5b */
+.lstate small{font-size:11px;color:var(--page-ink-dim);text-align:center;line-height:1.5;}
+.lstate small b{display:block;color:var(--page-ink);font-weight:600;}
+</style>
+</head>
+<body>
+
+<header class="doc">
+  <div class="kicker">UniRem · UX Direction 2 of 4</div>
+  <h1>Samsung Native</h1>
+  <p class="rationale">
+    Built to feel first-party: Tizen/SmartThings-adjacent blue, the circular D-pad and pill keys
+    of the physical Samsung remote, and side-rail volume/power exactly where thumbs already expect
+    them. Density and type weight stay conventional so nothing competes with the TV; motion is a
+    short 150ms system snap — trustworthy, familiar, zero surprise.
+  </p>
+  <ul class="facts">
+    <li><b>Hero mode shown:</b> (a) thumb-arc — D-pad in the bottom third. Mode (b) big-pad exists as the alternate hero.</li>
+    <li><b>Ring states depicted:</b> Phone 1 — solid settle (observed) · Phone 3 — amber (unconfirmed). Full legend below.</li>
+    <li><b>Secondary screen:</b> pairing flow with TOFU confirmation ("Press Allow on your TV").</li>
+    <li><b>State variants:</b> 👆 Pad launcher slot disabled (pointer probe failed) with one-time chip · amber unconfirmed toast.</li>
+  </ul>
+</header>
+
+<main class="stage">
+
+  <!-- ============ PHONE 1 — HERO, RING: SOLID SETTLE (OBSERVED), PAD DISABLED ============ -->
+  <figure class="device">
+    <div class="phone">
+      <div class="camera"></div>
+      <div class="statusbar"><span>LTE ▂▄▆</span><span>9:47 PM&nbsp;&nbsp;▮▮▮▯ 84%</span></div>
+      <div class="topbar">
+        <button class="tvswitch"><span class="dot"></span>📺 Living Room TV <span class="caret">▾</span></button>
+        <button class="gear" title="Settings">⚙</button>
+      </div>
+
+      <!-- one-time unsupported-key chip -->
+      <div class="chip">
+        <span class="mark">●</span>
+        <span>This TV doesn't report Play — it may still work.</span>
+        <span class="x">×</span>
+      </div>
+
+      <div class="hero">
+        <div class="spacer" style="flex:0 0 30px;"></div>
+
+        <div class="rails">
+          <div class="vrocker">
+            <button title="Volume up">🔉＋</button>
+            <button title="Mute">🔇</button>
+            <button title="Volume down">🔉−</button>
+          </div>
+          <div class="rail-right">
+            <button class="ckey power" title="Power">⏻</button>
+            <button class="ckey" title="Play / Pause">⏯</button>
+          </div>
+        </div>
+
+        <div class="keyrow">
+          <button class="pill"><span class="g">⌂</span>Home</button>
+          <button class="pill"><span class="g">↩</span>Back</button>
+          <button class="pill"><span class="g">🎬</span>Apps</button>
+          <button class="pill"><span class="g">🔍</span>Search</button>
+        </div>
+
+        <div class="ringwrap">
+          <!-- ambient state ring: SOLID SETTLE — TV observed the last key -->
+          <div class="ring settle" title="Ring state: solid settle (observed)">
+            <div class="dpad">
+              <button class="nav up">▲</button>
+              <button class="nav left">◀</button>
+              <button class="ok">OK</button>
+              <button class="nav right">▶</button>
+              <button class="nav down">▼</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="spacer"></div>
+
+        <!-- one-time chip explaining the disabled Pad slot -->
+        <div class="chip blue" style="margin-bottom:8px;">
+          <span class="mark">👆</span>
+          <span>Pad stays hidden until your TV reports a pointer. All other keys work as normal.</span>
+          <span class="x">×</span>
+        </div>
+
+        <div class="launcher">
+          <div class="grabber"></div>
+          <div class="launch-row">
+            <button class="launch"><span class="ic">⌨</span><small>Text</small></button>
+            <button class="launch"><span class="ic">🎤</span><small>Voice</small></button>
+            <button class="launch disabled" title="Disabled — TV failed the pointer probe"><span class="ic">👆</span><small>Pad</small></button>
+            <button class="launch"><span class="ic">📶</span><small>Cast</small></button>
+            <button class="launch"><span class="ic">🪞</span><small>Mirror</small></button>
+            <button class="launch"><span class="ic">⏻</span><small>Wake</small></button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <figcaption>
+      <b>Hero — thumb-arc mode (a).</b> Ring state: <b>solid settle (observed)</b> — green, the TV
+      confirmed the last key. Volume rocker sits on the left rail and power on the right, mirroring
+      the physical Samsung remote. <b>👆 Pad is disabled</b> (dashed, dimmed): this TV failed the
+      pointer probe, and a one-time chip says so plainly before dismissing forever.
+    </figcaption>
+  </figure>
+
+  <!-- ============ PHONE 2 — SECONDARY: PAIRING FLOW (TOFU) ============ -->
+  <figure class="device">
+    <div class="phone">
+      <div class="camera"></div>
+      <div class="statusbar"><span>LTE ▂▄▆</span><span>9:41 PM&nbsp;&nbsp;▮▮▮▯ 85%</span></div>
+      <div class="topbar">
+        <button class="tvswitch" style="background:none;border:none;font-size:17px;">Pairing… <span class="caret">▾</span></button>
+        <button class="gear" title="Settings">⚙</button>
+      </div>
+
+      <div class="pair">
+        <h2>Press Allow on your TV</h2>
+        <p class="lede">A prompt is on your TV screen right now. Use the physical remote to select <b style="color:var(--ink);">Allow</b>.</p>
+
+        <div class="steps">
+          <div class="step"><span class="n">1</span><p>Look at your TV<span>If it's asleep, press any key on the physical remote to wake it.</span></p></div>
+          <div class="step"><span class="n">2</span><p>Select Allow<span>Highlight it with the remote's direction keys, then press OK.</span></p></div>
+          <div class="step"><span class="n">3</span><p>Confirm it's your TV below<span>First connections are checked once, by you.</span></p></div>
+        </div>
+
+        <div class="tvcard">
+          <div class="name">📺 “Living Room TV”</div>
+          <div class="meta">Samsung UE55NU8000 · Tizen 5.0<br>MAC 8C:F5:A3:••:••:4D · same Wi-Fi as this phone</div>
+        </div>
+
+        <div class="tofu">
+          <b>First time connecting — verify it's yours</b>
+          If this name or model doesn't match the TV in front of you, stop. Another device on the
+          network may be answering instead.
+        </div>
+
+        <div class="pair-actions">
+          <button class="btn-primary">This is my TV — connect</button>
+          <button class="btn-ghost">That's not my TV</button>
+        </div>
+      </div>
+    </div>
+    <figcaption>
+      <b>Secondary screen — pairing flow.</b> Plain-language steps, the physical remote as the
+      instrument, and a TOFU confirmation card showing exactly what the app saw (name, model,
+      masked MAC) so "Allow" is an informed yes. The refusal path ("That's not my TV") is always visible.
+    </figcaption>
+  </figure>
+
+  <!-- ============ PHONE 3 — HERO VARIANT, RING: AMBER (UNCONFIRMED) ============ -->
+  <figure class="device">
+    <div class="phone">
+      <div class="camera"></div>
+      <div class="statusbar"><span>LTE ▂▄▆</span><span>9:49 PM&nbsp;&nbsp;▮▮▮▯ 84%</span></div>
+      <div class="topbar">
+        <button class="tvswitch"><span class="dot" style="background:var(--ring-amber);"></span>📺 Living Room TV <span class="caret">▾</span></button>
+        <button class="gear" title="Settings">⚙</button>
+      </div>
+
+      <div class="hero">
+        <div class="spacer" style="flex:0 0 88px;"></div>
+
+        <div class="rails">
+          <div class="vrocker">
+            <button style="background:var(--accent-deep);">🔉＋</button>
+            <button>🔇</button>
+            <button>🔉−</button>
+          </div>
+          <div class="rail-right">
+            <button class="ckey power">⏻</button>
+            <button class="ckey">⏯</button>
+          </div>
+        </div>
+
+        <div class="keyrow">
+          <button class="pill"><span class="g">⌂</span>Home</button>
+          <button class="pill"><span class="g">↩</span>Back</button>
+          <button class="pill"><span class="g">🎬</span>Apps</button>
+          <button class="pill"><span class="g">🔍</span>Search</button>
+        </div>
+
+        <div class="ringwrap">
+          <!-- ambient state ring: AMBER — key submitted, TV has not confirmed -->
+          <div class="ring amber" title="Ring state: amber (unconfirmed)">
+            <div class="dpad">
+              <button class="nav up">▲</button>
+              <button class="nav left">◀</button>
+              <button class="ok">OK</button>
+              <button class="nav right">▶</button>
+              <button class="nav down">▼</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="toast"><span class="lamp"></span>Volume sent — waiting for the TV to confirm.</div>
+
+        <div class="spacer"></div>
+
+        <div class="launcher">
+          <div class="grabber"></div>
+          <div class="launch-row">
+            <button class="launch"><span class="ic">⌨</span><small>Text</small></button>
+            <button class="launch"><span class="ic">🎤</span><small>Voice</small></button>
+            <button class="launch disabled"><span class="ic">👆</span><small>Pad</small></button>
+            <button class="launch"><span class="ic">📶</span><small>Cast</small></button>
+            <button class="launch"><span class="ic">🪞</span><small>Mirror</small></button>
+            <button class="launch"><span class="ic">⏻</span><small>Wake</small></button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <figcaption>
+      <b>Same hero — ring state: amber (unconfirmed).</b> Volume-up was sent; the TV hasn't
+      confirmed. The ring holds amber, the pressed key keeps its 150ms flash color, and a toast
+      states the fact without drama. If no answer arrives, this escalates to red + banner — never
+      a silent failure.
+    </figcaption>
+  </figure>
+
+</main>
+
+<!-- ============ RING LEGEND — ALL FIVE STATES ============ -->
+<section class="legend">
+  <h2>Ambient state ring — all five states</h2>
+  <div class="states">
+    <div class="lstate"><span class="lring l-idle"></span><small><b>Idle</b>dim navy — recedes until you look</small></div>
+    <div class="lstate"><span class="lring l-pulse"></span><small><b>Submitted</b>300ms blue pulse per keypress</small></div>
+    <div class="lstate"><span class="lring l-solid"></span><small><b>Observed</b>solid green settle — TV confirmed</small></div>
+    <div class="lstate"><span class="lring l-amber"></span><small><b>Unconfirmed</b>amber + plain-language toast</small></div>
+    <div class="lstate"><span class="lring l-red"></span><small><b>Offline</b>red + "TV didn't answer — retry?"</small></div>
+  </div>
+</section>
+
+</body>
+</html>

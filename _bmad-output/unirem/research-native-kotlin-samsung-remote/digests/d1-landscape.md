@@ -1,0 +1,14 @@
+# d1-landscape — Samsung WS / SmartThings / UPnP / DIAL paths (claims only)
+
+- Local remote uses `samsung.remote.control` channel: usually WSS 8002 with per-TV token, WS 8001 legacy, device info at `/api/v2/`, discovery via SSDP + `/api/v2/` query | source=[6] publisher=samsungtvws-PyPI pub=2026-09-11 accessed=2026-10-16 | confidence=medium | class=compat
+- Samsung does not document local remote as public phone API; details reverse-engineered, model/firmware dependent | source=[8] publisher=xchwarze-remote.py pub=undated accessed=2026-10-16 | confidence=medium | class=compat
+- Several independent community codebases report Tizen-era support; not Samsung certification | source=[7] publisher=TheFab21-ha-samsungtv-smart pub=2026-08-17 accessed=2026-10-16 | confidence=medium | class=ecosystem
+- Pre-2016 Orsay TVs used legacy TCP 55000; out of scope | source=[50] publisher=openHAB-Samsung-binding pub=undated accessed=2026-10-16 | confidence=high | class=compat
+- TVInputDevice and VoiceInteraction are on-TV app APIs, not phone-to-TV remote protocol | source=[2] publisher=Samsung-Developer-TVInputDevice pub=undated accessed=2026-10-16 | confidence=high | class=pattern
+- Smart View SDK is app-to-app (sender + TV receiver); new Cloud TV apps ended 2019, DMP ended 2021; Android pkg 2.5.34 dated 2024-07-25 is maintenance only | source=[5] publisher=Samsung-Developer-SmartView-Download pub=2024-07-25 accessed=2026-10-16 | confidence=medium | class=version
+- SmartThings is capability-based; no evidence it injects arbitrary keys/text/pointer/mic audio | source=[16] publisher=SmartThings-HomeAPI-GetStarted pub=undated accessed=2026-10-16 | confidence=low | class=compat
+- Home API lists MediaPlayback/KeypadInput/Switch but is restricted preview needing account + Matter hub + separate APK; not shippable universal TV API | source=[16] publisher=SmartThings-HomeAPI-GetStarted pub=undated accessed=2026-10-16 | confidence=medium | class=ecosystem
+- UPnP AV AVTransport/RenderingControl is media-renderer control; exposed services and formats vary by device | source=[15] publisher=UPnP-Forum-AVTransport-v2 pub=2006-05-31 accessed=2026-10-16 | confidence=high | class=pattern
+- Many Samsung TVs act as DMR but must be discovered per TV, not assumed; general-spec codec table does not prove DLNA renderer | source=[1] publisher=Samsung-Developer-General-Specs pub=undated accessed=2026-10-16 | confidence=medium | class=compat
+- DIAL discovers/launches apps only; not power, remote-key or mirroring protocol | source=[18] publisher=DIAL-official pub=2026-08-13 accessed=2026-10-16 | confidence=high | class=pattern
+- No reliable primary source shows universal Samsung auth/encryption change in last 12 months | source=[6] publisher=samsungtvws-PyPI pub=2026-09-11 accessed=2026-10-16 | confidence=medium | class=other

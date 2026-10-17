@@ -1,0 +1,23 @@
+# Deepen Voice r1 — digest (2026-10-16)
+
+## Claims
+- claim | Discussion #177 (xchwarze) summarizes Remote Control service as MultiScreen-based client API with Input Emulation, IME/Base64 text, touch, and Voice Control that "streams raw audio data" and "tracks voice app state (recording, processing, standby, hidden)" over channel `samsung.remote.control` with HTTP bootstrap `/remoteControl/` + optional token HTTPS | source=<[REVERSE] Remote Control #177> publisher=GitHub (xchwarze/samsung-tv-ws-api discussions) pub=2026-01-22 accessed=2026-10-16 | confidence=medium | class=pattern
+- claim | Same thread gives NO frames, method names, codec, sample-rate, or chunking in visible body; only pointers to 4 Pastebin blobs (RemoteControl class, Channel class, RestService, Implementation) | source=<[REVERSE] Remote Control #177> publisher=GitHub pub=2026-01-22 accessed=2026-10-16 | confidence=high | class=other
+- claim | Pastebin code links in #177 were not retrieved this run (login-gated fetch not attempted); therefore raw-audio frame format remains unproven from primary text | source=<[REVERSE] Remote Control #177> publisher=GitHub pub=2026-01-22 accessed=2026-10-16 | confidence=high | class=other
+- claim | Samsung VoiceInteraction API (webapis.voiceinteraction, since 6.0, privilege http://developer.samsung.com/privilege/voicecontrol) is TV-app-side: setCallback(VoiceInteractionCallback)+listen(), onupdatestate/onnavigation/onplay/onselection/ontitleselection etc.; no phone-to-TV audio transport in interface | source=<VoiceInteraction API> publisher=Samsung Developer pub=undated accessed=2026-10-16 | confidence=high | class=compat
+- claim | Samsung Tizen VoiceControl API (tizen.voicecontrol.getVoiceControlClient, since 4.0, privilege http://tizen.org/privilege/recorder) is TV-app-side predefined-command recognition: setCommandList/unsetCommandList + addResultListener(SUCCESS/FAILURE); no network/phone transport | source=<VoiceControl API> publisher=Samsung Developer (mirrors samsungtizenos.com) pub=undated accessed=2026-10-16 | confidence=high | class=compat
+- claim | Phone-side STT-to-command path is architecturally viable: AudioRecord PCM16 capture (16000/44100 Hz, MONO, getMinBufferSize) → Android SpeechRecognizer / on-device check isOnDeviceRecognitionAvailable / ML Kit GenAI SR (API 31+) → intent→key/text mapped into existing WS key/text channel; avoids raw-audio socket entirely | source=<SpeechRecognizer API reference> publisher=Android Developers pub=undated accessed=2026-10-16 + <Android Speech Recognition in 2026> publisher=Picovoice pub=2026 accessed=2026-10-16 | confidence=medium | class=pattern
+- claim | Proven elements: AudioRecord+SpeechRecognizer APIs exist and are documented; Unproven for this TV target: end-to-end latency budget, exact key/text mapping table for voice intents, offline accuracy on-device vs cloud — no measured numbers retrieved this run | source=<SpeechRecognizer API reference> publisher=Android Developers pub=undated accessed=2026-10-16 | confidence=medium | class=other
+- claim | Minimal viable raw-audio pipeline IF socket existed (hypothesis only): 16kHz 16-bit mono PCM chunks (~100–200ms) over same WS/binary channel to TV voice-ingestion endpoint; TV-side ingestion point unknown — no method/endpoint evidenced | source=<synthesis from #177 + Android AudioRecord pattern> publisher=none (hypothesis) pub=undated accessed=2026-10-16 | confidence=low | class=pattern
+
+## LEADS:
+- LEAD: Resolve Pastebin blobs from #177 (yWUgrTay, TghJF135, ajjZFvLu, DMgnDCBP) via authenticated fetch or EDEN issue #163 — only path to frames/codec/chunking facts
+- LEAD: Locate correct ThaerM repo name (Remote-TV pull/15/files 404 this run) — try ThaerMajali/thaer or org search; verify key/text implementation + voice omission from code
+- LEAD: Decompile Samsung SmartThings / SmartView APK for `samsung.remote.control` voice opcode to confirm/deny raw-audio method
+- LEAD: Check Samsung Microphone API + Smart View SDK docs for any documented phone-mic relay (expected none)
+
+## NOT FOUND:
+- NOT FOUND: ThaerM Remote-TV PR #15 content — generic search returned only Xfinity/Cox noise; direct GitHub PR-files URL returned 404; key/text details and voice-omission scope unverified this run
+- NOT FOUND: Channel method names, frame envelope, codec (PCM/Opus?), chunk size, sample rate for Samsung WS voice — not present in retrieved #177 body or Samsung docs
+- NOT FOUND: Any Samsung doc exposing phone-to-TV voice transport in VoiceInteraction or VoiceControl APIs — both are TV-app-local by interface inspection
+- NOT FOUND: Measured latency/accuracy numbers for AudioRecord→STT→WS-key path against Samsung TV in 2026 sources
