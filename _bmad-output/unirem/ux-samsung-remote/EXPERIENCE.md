@@ -24,9 +24,9 @@ The product is a remote control for Samsung Tizen TVs over the local network. It
 |---|---|
 | Stakes | Consumer. Public Play Store. Every claim here is scrutinizable by a stranger. |
 | Surface | One app, one hero, sheets off it. The TV side is not a client — except the CAP-7 Tizen receiver, which is a separate sideloaded app on the TV. |
-| Lighting | **Dark-first.** Living-room lighting was a stated concern. Default theme `{theme.midnight-ember}`; a light treatment is a `DESIGN.md` token concern, not a behavioral one. |
+| Lighting | **Dark-first.** Living-room lighting was a stated concern. Default theme `{themes.midnight-ember}`; a light treatment is a `DESIGN.md` token concern, not a behavioral one. |
 | Motion | **Spring, not fade.** State changes carry weight and settle; fades are reserved for surfaces entering and leaving, never for state on the hot path. |
-| Themes | Direction-constant skeleton + 6 user-switchable token themes (`{theme.midnight-ember}`, `{theme.tizen-blue}`, `{theme.graphite-mint}`, `{theme.warm-slate}`, `{theme.high-contrast-mono}`, `{theme.deep-teal}`). Themes swap color tokens only — never materials, geometry, type or motion. Switcher lives in Settings → Appearance. |
+| Themes | Direction-constant skeleton + 6 user-switchable token themes (`{themes.midnight-ember}`, `{themes.tizen-blue}`, `{themes.graphite-mint}`, `{themes.warm-slate}`, `{themes.high-contrast-mono}`, `{themes.deep-teal}`). Themes swap color tokens only — never materials, geometry, type or motion. Switcher lives in Settings → Appearance. |
 | Network | Local LAN only. Key, text and pointer traffic never leaves the LAN; there is no cloud fallback in the key path, so a LAN failure is explained, never routed around. |
 | Naming | `{appName}` everywhere user-visible. No string in this app concatenates fragments at runtime. |
 
@@ -61,7 +61,9 @@ The product is a remote control for Samsung Tizen TVs over the local network. It
 | 11 | Settings + diagnostics | From TVs management or hero overflow | Appearance/themes, permissions, network isolation diagnosis, capability readout | All |
 | 12 | Tizen receiver companion | Mirror sheet | Install steps for the TV-side receiver; the honest reason mirroring may be unavailable | CAP-7 |
 
-Every CAP-1..8 lands on a surface. Every surface has a journey in **Key Flows** that lands on it. Closure verified; a new surface is a change to this table, not an addition at the end of it.
+Every CAP-1..8 lands on a surface. Closure verified — a new surface is a change to this table, not an addition at the end of it.
+
+**Coverage of Key Flows is not yet total, and this document does not claim it is.** Eight of the twelve surfaces are reached by a journey in **Key Flows**: Kai covers the remote hero and TV switching (CAP-1, CAP-8), Dana covers the text sheet (CAP-2), Maya covers cast (CAP-6), and the secondary flows cover wake (CAP-5), mirror (CAP-7), voice (CAP-4), and honest labelling for 2014–15 H/J sets (CAP-8). Four surfaces are specified here — onboarding, touchpad (CAP-3), settings + diagnostics, and the Tizen receiver companion — but do not yet have a protagonist journey. **This is an open item, recorded rather than papered over**, because an unclaimed journey is a missing design decision, not a formatting gap. Each is specified well enough to build; naming its protagonist is the open part.
 
 ### Navigation rules
 
@@ -212,7 +214,7 @@ Rules that make the ring the whole story on the hot path:
 - **No toasts. No tickers. No transient anything on the key hot path.** State lives in the ring or it does not exist. A press produces exactly one ring transition and nothing else on screen.
 - **Ring state is scoped to the targeted TV.** Switching targets resets the ring; a verdict about the bedroom TV is never displayed as the state of the living-room TV.
 - **The `submitted` → `observed` distinction is never collapsed for speed.** A key that cannot be probed lands in `unconfirmed`, not `observed` and not a failure.
-- Every theme must keep all five states mutually distinguishable — contrast and colorblind-safe. `{theme.high-contrast-mono}` is held to the same contract as `{theme.midnight-ember}`.
+- Every theme must keep all five states mutually distinguishable — contrast and colorblind-safe. `{themes.high-contrast-mono}` is held to the same contract as `{themes.midnight-ember}`.
 - `[ASSUMPTION]` Ring dwell timings — pulse duration, how long `observed` settles before returning to `idle`, and how long before `submitted` resolves to `unconfirmed` or `offline` — the measured key-latency figures from Spike A, which the verification matrix explicitly has not yet produced. Until measured, the timings must be tuned so that `unconfirmed` is reached by *timeout*, never by assumption.
 
 ### Unsupported keys
@@ -300,13 +302,13 @@ Onboarding diagnostics explains the isolation case in plain language and offers 
 
 ## Accessibility Floor
 
-Behavioral only. Contrast values, focus-ring colors and type sizes live in `DESIGN.md`; the themes that carry them include `{theme.high-contrast-mono}`, which **is** the accessibility theme and is a first-class option in Settings → Appearance, not a hidden debug build.
+Behavioral only. Contrast values, focus-ring colors and type sizes live in `DESIGN.md`; the themes that carry them include `{themes.high-contrast-mono}`, which **is** the accessibility theme and is a first-class option in Settings → Appearance, not a hidden debug build.
 
 **Colorblind-safety is a stated user constraint, and the ring is where it is tested.**
 
 - All five ring states must remain distinguishable by a **non-color signal** as well as hue. Each state carries a distinct differentiator: `idle` dimmest, unlit · `submitted` a visible pulse · `observed` a **solid, complete** ring · `unconfirmed` a **dashed** ring of the same weight · `offline` a solid red ring plus the dimmed keys and the banner.
 - **Decided 2026-10-22 (user):** `unconfirmed` is distinguished from `observed` by **stroke pattern — dashed vs. solid**, not by a breathing blink. The two states differ by hue alone in every source, and hue alone is not a channel: they collapse to CR 1.16 under deuteranopia in Midnight Ember and CR 1.03 in Warm Slate. Stroke pattern survives greyscale, all three CVD simulations, and reduced motion. Blink remains available as a one-line change if the pairing proves too subtle in testing.
-- This holds across **all six themes in both dark and light**, including `{theme.high-contrast-mono}`, where hue is doing no work at all and the static forms carry the whole contract. The ring renders only inside `{colors.const-groove}`, which is direction-constant — so light mode changes the surrounding surface, never the seat.
+- This holds across **all six themes in both dark and light**, including `{themes.high-contrast-mono}`, where hue is doing no work at all and the static forms carry the whole contract. The ring renders only inside `{colors.const-groove}`, which is direction-constant — so light mode changes the surrounding surface, never the seat.
 - The static differentiators must survive reduced motion, because reduced motion removes the pulse that is `submitted`'s signature; `submitted` then relies on the single swell completing and extinguishing, which is itself the signal.
 
 **TalkBack.**
