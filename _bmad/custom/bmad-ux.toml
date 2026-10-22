@@ -1,0 +1,13 @@
+# Team pin for the bmad-ux skill. Committed, so every session lands the same way.
+#
+# Why: the stock workflow writes runs to {planning_artifacts}/ux-designs, and
+# planning_artifacts is a v6 key pointing at _bmad-output/planning-artifacts,
+# which this project does not use. UX output belongs in the active initiative,
+# beside the spec and research it draws from.
+#
+# run_folder_pattern is pinned to a literal name so a re-run resumes the same
+# workspace instead of minting a date-stamped sibling.
+
+[workflow]
+ux_output_path = "{project-root}/_bmad-output/unirem"
+run_folder_pattern = "ux-samsung-remote"
