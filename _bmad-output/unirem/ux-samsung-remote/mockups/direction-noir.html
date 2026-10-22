@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UniRem — Direction 1 — Living Room Noir</title>
+<style>
+/* ============================================================
+   DIRECTION 1 — "LIVING ROOM NOIR"
+   Register: premium, quiet, cinematic. Near-black OLED surfaces;
+   warm neutral (champagne/ivory) accent used sparingly; the ambient
+   state ring is the ONLY saturated element on screen.
+   Density: low. Type weight: light/regular (300–400).
+   Motion implication: slow breathing ring pulse (~900ms) on submit,
+   400ms settle on confirm. Nothing else moves.
+   HERO MODE SHOWN: (a) thumb-arc. (Mode (b) big-pad exists as the
+   alternate hero and is not depicted here.)
+   RING STATES DEPICTED: Phone 1 = soft pulse (submitted);
+   Phone 2 = red + offline banner; legend at bottom shows all five.
+   ============================================================ */
+
+:root{
+  /* ---- palette: every hex documented ---- */
+  --page-bg:#0c0b0a;        /* page canvas: warm near-black, keeps the phone the brightest object in the room */
+  --page-ink:#b7ae9e;       /* page copy: warm gray, low glare for the design doc itself */
+  --page-ink-dim:#6f675b;   /* page secondary copy: deeper warm gray for captions */
+  --bezel:#1c1a17;          /* phone bezel: graphite with a warm cast */
+  --bezel-edge:#332e26;     /* bezel rim highlight: faint warm edge catch, like glass in dim light */
+  --oled:#000000;           /* screen background: true OLED black — pixels off in a dark living room */
+  --surface:#141109;        /* raised sheet/panel: barely-lifted warm black */
+  --surface-2:#1d1913;      /* key caps: one step above surface, warm */
+  --hairline:#2a251d;       /* hairline borders: warm near-black, visible only up close */
+  --ink:#ece5d8;            /* primary on-screen text: warm ivory, never pure white (glare) */
+  --ink-dim:#8a8175;        /* secondary text: warm gray-brown */
+  --ink-faint:#57503f;      /* disabled glyphs: ash */
+  --accent:#cbb994;         /* the warm neutral accent (champagne): OK key, caret, active states ONLY */
+  --ring-idle:#453e32;      /* ring idle: dim warm graphite */
+  --ring-pulse:#f0e4cc;     /* ring pulse (submitted): warm ivory glow — unsaturated, cinematic */
+  --ring-solid:#63b18c;     /* ring settle (observed): muted jade — first saturation on the page */
+  --ring-amber:#cf9a3f;     /* ring unconfirmed: amber, dimmed for OLED */
+  --ring-red:#e05a52;       /* ring offline: red, the loudest the app ever gets */
+  --banner-bg:#2a1210;      /* offline banner background: oxblood wash */
+}
+
+*{margin:0;padding:0;box-sizing:border-box;}
+html{background:var(--page-bg);}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  color:var(--page-ink);
+  padding:48px 40px 80px;
+}
+
+/* ---------- rationale / doc header ---------- */
+.doc{max-width:1080px;margin:0 auto 44px;}
+.doc .kicker{
+  font-size:12px;letter-spacing:.24em;text-transform:uppercase;
+  color:var(--page-ink-dim);margin-bottom:10px;
+}
+.doc h1{
+  font-size:34px;font-weight:300;letter-spacing:.02em;color:var(--ink);
+  margin-bottom:16px;
+}
+.doc .rationale{
+  font-size:16px;line-height:1.65;font-weight:300;color:var(--page-ink);
+  max-width:760px;margin-bottom:20px;
+}
+.doc .facts{
+  list-style:none;font-size:13px;color:var(--page-ink-dim);
+  border-left:2px solid var(--hairline);padding-left:16px;line-height:1.9;
+}
+.doc .facts b{color:var(--page-ink);font-weight:500;}
+
+/* ---------- stage & figures ---------- */
+.stage{
+  display:flex;flex-wrap:wrap;gap:56px;justify-content:center;
+  align-items:flex-start;
+}
+.device{width:390px;}
+.device figcaption{
+  margin-top:20px;font-size:12.5px;line-height:1.7;color:var(--page-ink-dim);
+  border-top:1px solid var(--hairline);padding-top:12px;
+}
+.device figcaption b{color:var(--page-ink);font-weight:500;}
+
+/* ---------- phone frame (pure CSS) ---------- */
+.phone{
+  width:390px;height:844px;border-radius:46px;position:relative;
+  background:var(--oled);
+  border:1px solid var(--bezel-edge);
+  box-shadow:
+    0 0 0 10px var(--bezel),
+    0 0 0 11px #100e0b,               /* #100e0b — outer frame shadow line, near-black */
+    0 40px 80px rgba(0,0,0,.75);
+  overflow:hidden;
+  display:flex;flex-direction:column;
+}
+.island{
+  position:absolute;top:12px;left:50%;transform:translateX(-50%);
+  width:110px;height:28px;border-radius:14px;background:#000000; /* pure black punch-island, blends into OLED */
+  border:1px solid #141210;             /* #141210 — hairline rim so the island reads on the bezel */
+  z-index:30;
+}
+
+/* ---------- status bar ---------- */
+.statusbar{
+  height:48px;flex:0 0 auto;display:flex;align-items:flex-end;
+  justify-content:space-between;padding:0 26px 4px;
+  font-size:12px;color:var(--ink-dim);letter-spacing:.04em;
+}
+
+/* ---------- top bar ---------- */
+.topbar{
+  flex:0 0 auto;height:56px;display:flex;align-items:center;
+  justify-content:space-between;padding:0 20px;
+}
+.tvswitch{
+  background:none;border:none;color:var(--ink);cursor:pointer;
+  font-size:17px;font-weight:300;letter-spacing:.03em;
+  font-family:inherit;display:flex;align-items:center;gap:8px;
+  padding:8px 12px 8px 8px;border-radius:20px;
+}
+.tvswitch .caret{color:var(--accent);font-size:12px;}
+.tvswitch .live{
+  width:5px;height:5px;border-radius:50%;background:var(--ring-solid);
+  display:inline-block;margin-left:2px;
+}
+.gear{
+  background:none;border:1px solid var(--hairline);color:var(--ink-dim);
+  width:38px;height:38px;border-radius:50%;font-size:16px;cursor:pointer;
+}
+
+/* ---------- one-time unsupported-key chip ---------- */
+.chip{
+  margin:6px 20px 0;display:flex;align-items:center;gap:10px;
+  background:var(--surface);border:1px solid var(--hairline);
+  border-radius:12px;padding:10px 12px;
+  font-size:12.5px;color:var(--ink-dim);line-height:1.45;font-weight:300;
+}
+.chip .dot{color:var(--ring-amber);font-size:10px;}
+.chip .x{margin-left:auto;color:var(--ink-faint);font-size:14px;}
+
+/* ---------- hero body ---------- */
+.hero{flex:1 1 auto;display:flex;flex-direction:column;position:relative;}
+.nowline{
+  text-align:center;margin-top:26px;
+  font-size:11px;letter-spacing:.28em;text-transform:uppercase;
+  color:var(--ink-faint);font-weight:400;
+}
+
+/* key furniture block, anchored to bottom third */
+.controls{
+  margin-top:auto;padding:0 24px 14px;
+  display:flex;flex-direction:column;gap:18px;align-items:center;
+}
+
+/* slim volume rocker + transport + power */
+.utility-row{display:flex;align-items:center;gap:14px;width:100%;justify-content:center;}
+.rocker{
+  display:flex;border:1px solid var(--hairline);border-radius:24px;
+  background:var(--surface);overflow:hidden;height:48px;
+}
+.rocker button{
+  background:none;border:none;color:var(--ink-dim);cursor:pointer;
+  font-size:15px;width:60px;font-family:inherit;
+}
+.rocker button+button{border-left:1px solid var(--hairline);}
+.rocker button:hover{color:var(--ink);}
+.round-key{
+  width:48px;height:48px;border-radius:50%;border:1px solid var(--hairline);
+  background:var(--surface);color:var(--ink-dim);font-size:17px;cursor:pointer;
+}
+.round-key.power{color:var(--ink);}
+.round-key.power:hover{border-color:var(--ring-red);color:var(--ring-red);}
+
+/* secondary key row */
+.keyrow{display:flex;gap:12px;width:100%;justify-content:center;}
+.keyrow .skey{
+  background:var(--surface-2);border:1px solid var(--hairline);
+  border-radius:14px;color:var(--ink);cursor:pointer;
+  width:78px;height:52px;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:2px;
+  font-family:inherit;font-size:15px;font-weight:300;
+}
+.keyrow .skey small{font-size:9.5px;color:var(--ink-dim);letter-spacing:.08em;text-transform:uppercase;}
+
+/* ---------- ambient state ring + D-pad ---------- */
+.ringwrap{padding:14px 0 6px;}
+.ring{
+  width:236px;height:236px;border-radius:50%;
+  display:grid;place-items:center;position:relative;
+  transition:none; /* static mocks — motion implied only */
+}
+/* state: soft pulse (submitted) — ivory glow halo */
+.ring.pulse{
+  border:1.5px solid var(--ring-pulse);
+  box-shadow:
+    0 0 18px 4px rgba(240,228,204,.16),   /* rgba of --ring-pulse #f0e4cc at 16% */
+    0 0 46px 14px rgba(240,228,204,.07),  /* rgba of --ring-pulse #f0e4cc at 7% — outer breath */
+    inset 0 0 14px rgba(240,228,204,.05); /* rgba of --ring-pulse #f0e4cc at 5% */
+}
+/* state: red offline */
+.ring.offline{
+  border:1.5px solid var(--ring-red);
+  box-shadow:0 0 20px 4px rgba(224,90,82,.22),0 0 50px 12px rgba(224,90,82,.08);
+  /* rgba of --ring-red #e05a52 at 22% / 8% */
+}
+.dpad{
+  display:grid;
+  grid-template-columns:64px 76px 64px;
+  grid-template-rows:60px 70px 60px;
+  gap:4px;place-items:center;
+}
+.dpad .nav,.dpad .ok{
+  background:var(--surface-2);border:1px solid var(--hairline);
+  color:var(--ink);cursor:pointer;font-family:inherit;
+}
+.dpad .nav{width:60px;height:56px;border-radius:16px;font-size:16px;}
+.dpad .up{grid-column:2;grid-row:1;}
+.dpad .left{grid-column:1;grid-row:2;}
+.dpad .right{grid-column:3;grid-row:2;}
+.dpad .down{grid-column:2;grid-row:3;}
+.dpad .ok{
+  grid-column:2;grid-row:2;width:70px;height:70px;border-radius:50%;
+  font-size:13px;letter-spacing:.14em;color:var(--accent);
+  border:1px solid #3a3327; /* #3a3327 — OK key rim: bronze hairline, the accent used structurally */
+}
+.dpad .ok:hover{background:#241f16;} /* #241f16 — OK hover: warm lift */
+
+/* offline banner */
+.banner{
+  margin:12px 20px 0;display:flex;align-items:center;gap:12px;
+  background:var(--banner-bg);border:1px solid #4a211d; /* #4a211d — banner rim: dim oxblood */
+  border-radius:14px;padding:12px 14px;
+}
+.banner .msg{font-size:13.5px;color:#f0cdc6;line-height:1.4;font-weight:300;}
+  /* #f0cdc6 — banner text: pale rose, readable on oxblood, not alarming */
+.banner .retry{
+  margin-left:auto;background:none;border:1px solid var(--ring-red);
+  color:var(--ring-red);border-radius:20px;padding:7px 16px;
+  font-size:12.5px;cursor:pointer;font-family:inherit;white-space:nowrap;
+}
+.banner .later{
+  background:none;border:none;color:#9c7f78;font-size:12.5px;cursor:pointer;
+  font-family:inherit;white-space:nowrap;padding:7px 4px;
+} /* #9c7f78 — banner secondary action: muted rose-gray */
+
+/* dimmed keys for offline state */
+.phone.offline-state .dpad .nav,.phone.offline-state .round-key,
+.phone.offline-state .keyrow .skey,.phone.offline-state .rocker{
+  opacity:.45;
+}
+
+/* ---------- bottom sheet launcher ---------- */
+.launcher{
+  flex:0 0 auto;background:var(--surface);
+  border-top:1px solid var(--hairline);
+  border-radius:26px 26px 0 0;padding:8px 10px 26px;margin-top:10px;
+}
+.grabber{width:38px;height:4px;border-radius:2px;background:var(--hairline);margin:2px auto 12px;}
+.launch-row{display:flex;justify-content:space-between;padding:0 6px;}
+.launch{
+  background:none;border:none;cursor:pointer;font-family:inherit;
+  display:flex;flex-direction:column;align-items:center;gap:5px;width:56px;
+}
+.launch .ic{
+  width:44px;height:44px;border-radius:50%;background:var(--surface-2);
+  border:1px solid var(--hairline);display:grid;place-items:center;font-size:17px;
+}
+.launch small{font-size:9.5px;color:var(--ink-dim);letter-spacing:.06em;}
+.launch:hover small{color:var(--ink);}
+
+/* ---------- cast session screen ---------- */
+.cast-body{flex:1;display:flex;flex-direction:column;padding:34px 28px 0;text-align:center;}
+.cast-kicker{font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:18px;}
+.cast-title{font-size:24px;font-weight:300;color:var(--ink);letter-spacing:.01em;margin-bottom:8px;}
+.cast-to{font-size:13.5px;color:var(--ink-dim);font-weight:300;margin-bottom:44px;}
+.cast-art{
+  width:150px;height:150px;border-radius:50%;margin:0 auto 40px;
+  background:radial-gradient(circle at 34% 30%,#26211a 0%,#14110c 55%,#0a0906 100%);
+  /* #26211a → #14110c → #0a0906 — cast disc: warm graphite radial, film-reel homage */
+  border:1px solid var(--hairline);display:grid;place-items:center;
+  box-shadow:0 0 30px rgba(203,185,148,.05); /* rgba of --accent #cbb994 at 5% */
+}
+.cast-art .reel{width:34px;height:34px;border-radius:50%;border:1px solid var(--accent);position:relative;}
+.cast-art .reel::after{
+  content:"";position:absolute;inset:11px;border-radius:50%;background:var(--accent);opacity:.8;
+}
+.progress{display:flex;align-items:center;gap:12px;font-size:11.5px;color:var(--ink-dim);font-variant-numeric:tabular-nums;}
+.pbar{flex:1;height:3px;border-radius:2px;background:var(--surface-2);position:relative;}
+.pbar .fill{position:absolute;left:0;top:0;bottom:0;width:32%;border-radius:2px;background:var(--accent);}
+.pbar .knob{position:absolute;left:32%;top:-3.5px;width:10px;height:10px;border-radius:50%;background:var(--ink);transform:translateX(-50%);}
+.cast-transport{display:flex;justify-content:center;gap:26px;margin:36px 0 30px;}
+.cast-transport .round-key{width:56px;height:56px;font-size:19px;}
+.cast-transport .play{
+  width:74px;height:74px;border-radius:50%;border:1.5px solid var(--ring-solid);
+  background:none;color:var(--ring-solid);font-size:23px;cursor:pointer;
+  box-shadow:0 0 16px rgba(99,177,140,.15); /* rgba of --ring-solid #63b18c at 15% — TV confirmed playback */
+}
+.cast-note{
+  font-size:12.5px;color:var(--ink-dim);font-weight:300;line-height:1.6;
+  border-top:1px solid var(--hairline);padding-top:18px;margin:0 6px;
+}
+.cast-stop{
+  margin:18px auto 0;background:none;border:1px solid var(--hairline);
+  color:var(--ink-dim);border-radius:20px;padding:9px 22px;font-size:12.5px;
+  cursor:pointer;font-family:inherit;
+}
+.cast-stop:hover{color:var(--ring-red);border-color:var(--ring-red);}
+
+/* ---------- ring legend ---------- */
+.legend{
+  max-width:1080px;margin:64px auto 0;border-top:1px solid var(--hairline);padding-top:28px;
+}
+.legend h2{font-size:13px;letter-spacing:.22em;text-transform:uppercase;color:var(--page-ink-dim);font-weight:500;margin-bottom:22px;}
+.legend .states{display:flex;flex-wrap:wrap;gap:36px;}
+.lstate{display:flex;flex-direction:column;align-items:center;gap:10px;width:110px;}
+.lring{width:56px;height:56px;border-radius:50%;}
+.lring.l-idle{border:1.5px solid var(--ring-idle);}
+.lring.l-pulse{border:1.5px solid var(--ring-pulse);box-shadow:0 0 12px 3px rgba(240,228,204,.18),0 0 30px 8px rgba(240,228,204,.07);} /* rgba #f0e4cc */
+.lring.l-solid{border:1.5px solid var(--ring-solid);box-shadow:0 0 10px 2px rgba(99,177,140,.2);} /* rgba #63b18c */
+.lring.l-amber{border:1.5px solid var(--ring-amber);box-shadow:0 0 10px 2px rgba(207,154,63,.2);} /* rgba #cf9a3f */
+.lring.l-red{border:1.5px solid var(--ring-red);box-shadow:0 0 12px 3px rgba(224,90,82,.25);} /* rgba #e05a52 */
+.lstate small{font-size:11px;color:var(--page-ink-dim);text-align:center;line-height:1.5;}
+.lstate small b{display:block;color:var(--page-ink);font-weight:500;}
+</style>
+</head>
+<body>
+
+<header class="doc">
+  <div class="kicker">UniRem · UX Direction 1 of 4</div>
+  <h1>Living Room Noir</h1>
+  <p class="rationale">
+    A dark-room instrument, not an app: true-black OLED surfaces disappear against the
+    living room, warm ivory type sits at the edge of readability so the TV stays the brightest
+    thing you look at, and the only saturated color in the entire product is the ambient state
+    ring telling you the truth about your last keypress. Density is deliberately low, type is
+    light-weight, and motion is restricted to one slow breath of the ring per press — premium,
+    quiet, cinematic.
+  </p>
+  <ul class="facts">
+    <li><b>Hero mode shown:</b> (a) thumb-arc — D-pad in the bottom third. Mode (b) big-pad exists as the alternate hero.</li>
+    <li><b>Ring states depicted:</b> Phone 1 — soft pulse (submitted) · Phone 2 — red + offline banner. Full five-state legend below.</li>
+    <li><b>Secondary screen:</b> cast session ("Casting Grandma-80th.mp4…").</li>
+    <li><b>State variant:</b> offline banner ("TV didn't answer — retry?").</li>
+    <li><b>Type weight / density / motion:</b> 300–400 light · low density · single slow ring breath, 400ms settle, nothing else moves.</li>
+  </ul>
+</header>
+
+<main class="stage">
+
+  <!-- ============ PHONE 1 — HERO, THUMB-ARC, RING: SOFT PULSE (SUBMITTED) ============ -->
+  <figure class="device">
+    <div class="phone">
+      <div class="island"></div>
+      <div class="statusbar"><span>▂▄▆ &nbsp;Wi-Fi 6</span><span>21:47&nbsp;&nbsp;▮▮▮▯ 84%</span></div>
+      <div class="topbar">
+        <button class="tvswitch">📺 Living Room TV <span class="caret">▾</span><span class="live"></span></button>
+        <button class="gear" title="Settings">⚙</button>
+      </div>
+
+      <div class="chip">
+        <span class="dot">●</span>
+        <span>This TV doesn't report Play — it may still work.</span>
+        <span class="x">×</span>
+      </div>
+
+      <div class="hero">
+        <div class="nowline">Samsung UE55NU8000 · Tizen · connected</div>
+
+        <div class="controls">
+          <div class="utility-row">
+            <div class="rocker">
+              <button title="Volume down">🔉−</button>
+              <button title="Mute">🔇</button>
+              <button title="Volume up">🔉＋</button>
+            </div>
+            <button class="round-key" title="Play / Pause">⏯</button>
+            <button class="round-key power" title="Power">⏻</button>
+          </div>
+
+          <div class="keyrow">
+            <button class="skey">⌂<small>Home</small></button>
+            <button class="skey">↩<small>Back</small></button>
+            <button class="skey">🎬<small>Apps</small></button>
+            <button class="skey">🔍<small>Search</small></button>
+          </div>
+
+          <div class="ringwrap">
+            <!-- ambient state ring: SOFT PULSE — a keypress was just submitted, awaiting confirmation -->
+            <div class="ring pulse" title="Ring state: soft pulse (submitted)">
+              <div class="dpad">
+                <button class="nav up">▲</button>
+                <button class="nav left">◀</button>
+                <button class="ok">OK</button>
+                <button class="nav right">▶</button>
+                <button class="nav down">▼</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="launcher">
+          <div class="grabber"></div>
+          <div class="launch-row">
+            <button class="launch"><span class="ic">⌨</span><small>Text</small></button>
+            <button class="launch"><span class="ic">🎤</span><small>Voice</small></button>
+            <button class="launch"><span class="ic">👆</span><small>Pad</small></button>
+            <button class="launch"><span class="ic">📶</span><small>Cast</small></button>
+            <button class="launch"><span class="ic">🪞</span><small>Mirror</small></button>
+            <button class="launch"><span class="ic">⏻</span><small>Wake</small></button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <figcaption>
+      <b>Hero — thumb-arc mode (a).</b> D-pad centered in the bottom third; secondary key row above;
+      slim volume rocker with transport ⏯ and power ⏻. Ring state: <b>soft pulse (submitted)</b> —
+      a warm ivory breath, the only thing that moves. One-time inline chip for the unreported Play key.
+      Launcher row complete (this TV passed the pointer probe, so 👆 Pad is present).
+    </figcaption>
+  </figure>
+
+  <!-- ============ PHONE 2 — HERO, RING: RED OFFLINE + BANNER ============ -->
+  <figure class="device">
+    <div class="phone offline-state">
+      <div class="island"></div>
+      <div class="statusbar"><span>▂▄▆ &nbsp;Wi-Fi 6</span><span>21:52&nbsp;&nbsp;▮▮▮▯ 83%</span></div>
+      <div class="topbar">
+        <button class="tvswitch">📺 Living Room TV <span class="caret">▾</span></button>
+        <button class="gear" title="Settings">⚙</button>
+      </div>
+
+      <!-- offline banner: failure explains + one next action -->
+      <div class="banner">
+        <span class="msg">TV didn't answer — retry?</span>
+        <button class="later">Not now</button>
+        <button class="retry">Retry</button>
+      </div>
+
+      <div class="hero">
+        <div class="controls" style="margin-top:80px;">
+          <div class="utility-row">
+            <div class="rocker">
+              <button>🔉−</button><button>🔇</button><button>🔉＋</button>
+            </div>
+            <button class="round-key">⏯</button>
+            <button class="round-key power">⏻</button>
+          </div>
+
+          <div class="keyrow">
+            <button class="skey">⌂<small>Home</small></button>
+            <button class="skey">↩<small>Back</small></button>
+            <button class="skey">🎬<small>Apps</small></button>
+            <button class="skey">🔍<small>Search</small></button>
+          </div>
+
+          <div class="ringwrap">
+            <!-- ambient state ring: RED — offline, TV stopped answering -->
+            <div class="ring offline" title="Ring state: red (offline)">
+              <div class="dpad">
+                <button class="nav up">▲</button>
+                <button class="nav left">◀</button>
+                <button class="ok">OK</button>
+                <button class="nav right">▶</button>
+                <button class="nav down">▼</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="launcher">
+          <div class="grabber"></div>
+          <div class="launch-row">
+            <button class="launch"><span class="ic">⌨</span><small>Text</small></button>
+            <button class="launch"><span class="ic">🎤</span><small>Voice</small></button>
+            <button class="launch"><span class="ic">👆</span><small>Pad</small></button>
+            <button class="launch"><span class="ic">📶</span><small>Cast</small></button>
+            <button class="launch"><span class="ic">🪞</span><small>Mirror</small></button>
+            <button class="launch"><span class="ic">⏻</span><small>Wake</small></button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <figcaption>
+      <b>Same hero — ring state: red (offline).</b> The TV stopped answering: the ring turns red,
+      keys dim to 45%, and a single banner explains and offers one next action — <b>Retry</b>.
+      No spinners, no error codes, no red anywhere else. This is the loudest moment the product allows itself.
+    </figcaption>
+  </figure>
+
+  <!-- ============ PHONE 3 — SECONDARY: CAST SESSION ============ -->
+  <figure class="device">
+    <div class="phone">
+      <div class="island"></div>
+      <div class="statusbar"><span>▂▄▆ &nbsp;Wi-Fi 6</span><span>21:47&nbsp;&nbsp;▮▮▮▯ 84%</span></div>
+      <div class="topbar">
+        <button class="tvswitch">📺 Living Room TV <span class="caret">▾</span><span class="live"></span></button>
+        <button class="gear" title="Settings">⚙</button>
+      </div>
+
+      <div class="cast-body">
+        <div class="cast-kicker">Now casting</div>
+        <div class="cast-title">Grandma-80th.mp4</div>
+        <div class="cast-to">to Living Room TV</div>
+
+        <div class="cast-art"><span class="reel"></span></div>
+
+        <div class="progress">
+          <span>34:12</span>
+          <span class="pbar"><span class="fill"></span><span class="knob"></span></span>
+          <span>1:48:05</span>
+        </div>
+
+        <div class="cast-transport">
+          <button class="round-key" title="Previous">⏮</button>
+          <button class="play" title="Play / Pause — TV confirmed playing">⏯</button>
+          <button class="round-key" title="Next">⏭</button>
+        </div>
+
+        <p class="cast-note">
+          Keeps playing when your screen is off.<br>Your phone can stay locked.
+        </p>
+        <button class="cast-stop">Stop casting</button>
+      </div>
+
+      <div class="launcher">
+        <div class="grabber"></div>
+        <div class="launch-row">
+          <button class="launch"><span class="ic">⌨</span><small>Text</small></button>
+          <button class="launch"><span class="ic">🎤</span><small>Voice</small></button>
+          <button class="launch"><span class="ic">👆</span><small>Pad</small></button>
+          <button class="launch"><span class="ic" style="border-color:#3a3327;color:#cbb994;">📶</span><small style="color:#ece5d8;">Cast</small></button>
+          <button class="launch"><span class="ic">🪞</span><small>Mirror</small></button>
+          <button class="launch"><span class="ic">⏻</span><small>Wake</small></button>
+        </div>
+      </div>
+    </div>
+    <figcaption>
+      <b>Secondary screen — cast session.</b> The play key carries a <b>solid settle ring
+      (observed, jade)</b>: the TV confirmed playback, so the app says so with light instead of words.
+      Honest reassurance line about screen-off playback; one quiet exit.
+    </figcaption>
+  </figure>
+
+</main>
+
+<!-- ============ RING LEGEND — ALL FIVE STATES ============ -->
+<section class="legend">
+  <h2>Ambient state ring — the honesty element, all five states</h2>
+  <div class="states">
+    <div class="lstate"><span class="lring l-idle"></span><small><b>Idle</b>dim, warm graphite — barely there</small></div>
+    <div class="lstate"><span class="lring l-pulse"></span><small><b>Submitted</b>soft ivory pulse, one breath per keypress</small></div>
+    <div class="lstate"><span class="lring l-solid"></span><small><b>Observed</b>solid jade settle — TV confirmed</small></div>
+    <div class="lstate"><span class="lring l-amber"></span><small><b>Unconfirmed</b>amber — sent, no answer yet</small></div>
+    <div class="lstate"><span class="lring l-red"></span><small><b>Offline</b>red + banner — explains, offers retry</small></div>
+  </div>
+</section>
+
+</body>
+</html>

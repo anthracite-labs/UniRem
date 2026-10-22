@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UniRem — Direction 4 — Signal Brutalist</title>
+<style>
+/* ============================================================
+   DIRECTION 4 — "SIGNAL BRUTALIST"
+   Register: industrial utility, maximum dark-room legibility,
+   zero decoration. High-contrast monochrome (pure black/white),
+   oversized type, thick 4px outlines, square corners, mono labels.
+   Density: low count of HUGE targets — the whole UI is operable
+   by peripheral vision while eyes stay on the TV.
+   Type weight: 800–900, uppercase. Motion implication: none.
+   States cut instantly; the only "animation" permitted is a 1Hz
+   hard blink on the unconfirmed state.
+   HERO MODE SHOWN: (b) big-pad — oversized swipe slab
+   (swipe = D-pad, tap = OK) with floating function-key row.
+   (Mode (a) thumb-arc exists as the alternate hero.)
+   RING STATES DEPICTED: Phone 1 = idle (thick white outline);
+   Phone 2 = red + offline banner. Legend shows all five.
+   ============================================================ */
+
+:root{
+  /* ---- palette: every hex documented. Three hues total, plus two signals. ---- */
+  --page-bg:#000000;        /* page canvas: pure black — the phone is a hole in the wall */
+  --page-ink:#9a9a9a;       /* page copy: neutral mid-gray (doc chrome only) */
+  --page-ink-dim:#5c5c5c;   /* page captions: deep gray */
+  --bezel:#000000;          /* phone bezel: black, frame drawn as a white outline instead */
+  --frame:#ffffff;          /* phone frame outline + all key outlines: pure white */
+  --screen:#000000;         /* screen background: pure black OLED */
+  --surface:#0a0a0a;        /* recessed wells (banner bg, pad floor): one step off black, perceptible as "inside" */
+  --ink:#ffffff;            /* primary text/glyphs: pure white — max dark-room contrast */
+  --ink-dim:#9a9a9a;        /* secondary text: mid-gray */
+  --ink-faint:#4d4d4d;      /* disabled text/outlines: dark gray, still legible at arm's length */
+  --signal-amber:#ffb400;   /* unconfirmed: pure amber, the only warm color */
+  --signal-red:#ff2a1f;     /* offline: pure red, the only alert color */
+  --signal-green:#00e070;   /* observed/settle: pure green — allowed only on the ring */
+}
+
+*{margin:0;padding:0;box-sizing:border-box;}
+html{background:var(--page-bg);}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  color:var(--page-ink);
+  padding:48px 40px 80px;
+}
+.mono{font-family:ui-monospace,"Cascadia Mono","Segoe UI Mono",Consolas,monospace;} /* system mono stack — no webfonts */
+
+/* ---------- rationale / doc header ---------- */
+.doc{max-width:1140px;margin:0 auto 44px;}
+.doc .kicker{font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:var(--page-ink-dim);margin-bottom:12px;font-weight:700;}
+.doc h1{font-size:40px;font-weight:900;color:var(--ink);text-transform:uppercase;letter-spacing:-.02em;margin-bottom:18px;}
+.doc .rationale{font-size:15.5px;line-height:1.7;font-weight:400;color:var(--page-ink);max-width:780px;margin-bottom:22px;}
+.doc .facts{list-style:none;font-size:13px;color:var(--page-ink-dim);border-left:4px solid var(--frame);padding-left:16px;line-height:2;}
+.doc .facts b{color:var(--ink);font-weight:700;}
+
+/* ---------- stage ---------- */
+.stage{display:flex;flex-wrap:wrap;gap:54px;justify-content:center;align-items:flex-start;}
+.device{width:390px;}
+.device figcaption{margin-top:22px;font-size:12.5px;line-height:1.75;color:var(--page-ink-dim);border-top:4px solid var(--frame);padding-top:12px;}
+.device figcaption b{color:var(--ink);font-weight:700;}
+
+/* ---------- phone frame: white outline, zero radius ---------- */
+.phone{
+  width:390px;height:844px;border-radius:28px;position:relative;
+  background:var(--screen);
+  border:4px solid var(--frame);
+  box-shadow:0 0 0 6px #000000,0 0 0 8px #2e2e2e,0 30px 60px rgba(0,0,0,.9);
+  /* #2e2e2e — outer case line: dark gray steel; the frame itself is the white outline */
+  overflow:hidden;display:flex;flex-direction:column;
+}
+
+/* ---------- status bar ---------- */
+.statusbar{
+  height:44px;flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;
+  padding:8px 20px 0;font-size:13px;font-weight:700;color:var(--ink);letter-spacing:.08em;
+}
+
+/* ---------- top bar ---------- */
+.topbar{
+  flex:0 0 auto;display:flex;align-items:stretch;justify-content:space-between;
+  padding:8px 16px;border-bottom:4px solid var(--frame);gap:12px;
+}
+.tvswitch{
+  flex:1;background:none;border:4px solid var(--frame);color:var(--ink);cursor:pointer;
+  font-family:inherit;font-size:17px;font-weight:900;text-transform:uppercase;letter-spacing:.02em;
+  padding:12px 14px;display:flex;align-items:center;gap:10px;text-align:left;
+}
+.tvswitch .caret{margin-left:auto;font-size:16px;}
+.gear{
+  width:58px;background:none;border:4px solid var(--frame);color:var(--ink);
+  font-size:22px;cursor:pointer;
+}
+
+/* ---------- one-time chip: thick box, mono type ---------- */
+.chip{
+  margin:14px 16px 0;border:3px solid var(--ink-dim);
+  padding:10px 12px;display:flex;align-items:center;gap:10px;
+  font-size:12.5px;font-weight:700;color:var(--ink);line-height:1.5;
+  text-transform:uppercase;letter-spacing:.04em;
+}
+.chip .tag{border:2px solid var(--signal-amber);color:var(--signal-amber);font-size:10px;font-weight:800;padding:2px 6px;letter-spacing:.12em;flex:0 0 auto;}
+.chip .x{margin-left:auto;color:var(--ink-dim);font-size:16px;font-weight:800;}
+
+/* ---------- hero (big-pad mode) ---------- */
+.hero{flex:1;display:flex;flex-direction:column;padding:0 16px;}
+
+/* floating function-key row: oversized outlined boxes */
+.fnrow{display:flex;gap:8px;padding:16px 0 12px;}
+.fk{
+  flex:1;height:66px;background:none;border:4px solid var(--frame);color:var(--ink);
+  cursor:pointer;font-family:inherit;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:2px;
+}
+.fk .g{font-size:19px;}
+.fk small{font-size:9px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-dim);}
+.fk.power .g{color:var(--signal-red);}
+
+/* ---------- THE PAD: thick-outlined slab, ring = the outline itself ---------- */
+.padbox{padding:6px 0 12px;}
+.ring{border:6px solid var(--frame);padding:10px;}           /* ring state: IDLE — full white outline, no glow */
+.ring.red{border-color:var(--signal-red);}                     /* ring state: OFFLINE — outline goes red */
+.ring.amber{border-color:var(--signal-amber);}
+.ring.green{border-color:var(--signal-green);}
+.pad{
+  background:var(--surface);border:3px solid var(--frame);
+  height:330px;position:relative;display:grid;
+  grid-template-columns:1fr 1.2fr 1fr;grid-template-rows:1fr 1.2fr 1fr;
+}
+.pad .dir{
+  background:none;border:none;color:var(--ink);cursor:pointer;font-size:34px;font-weight:900;
+  font-family:inherit;
+}
+.pad .d-up{grid-area:1/2;border-bottom:3px solid var(--ink-faint);}
+.pad .d-left{grid-area:2/1;border-right:3px solid var(--ink-faint);}
+.pad .d-right{grid-area:2/3;border-left:3px solid var(--ink-faint);}
+.pad .d-down{grid-area:3/2;border-top:3px solid var(--ink-faint);}
+.pad .ok{
+  grid-area:2/2;background:none;border:none;cursor:pointer;font-family:inherit;
+  color:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+}
+.pad .ok .g{font-size:18px;}
+.pad .ok b{font-size:30px;font-weight:900;letter-spacing:.06em;}
+.pad .ok small{font-size:10px;font-weight:800;letter-spacing:.18em;color:var(--ink-dim);text-transform:uppercase;}
+.pad .rule{
+  position:absolute;left:12px;right:12px;bottom:8px;text-align:center;
+  font-size:11px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-dim);
+}
+
+/* ring state line under pad — states are ALWAYS also written in words */
+.stateline{
+  display:flex;align-items:center;gap:10px;padding:2px 2px 12px;
+  font-size:12px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-dim);
+}
+.stateline .lamp{width:14px;height:14px;border:3px solid var(--frame);flex:0 0 auto;}
+.stateline .lamp.idle{border-color:var(--ink-dim);}
+.stateline .lamp.red{border-color:var(--signal-red);}
+.stateline .lamp.amber{border-color:var(--signal-amber);}
+
+/* ---------- utility strip: VOL / TRANSPORT / POWER as big boxes ---------- */
+.util{display:flex;gap:8px;padding-bottom:14px;}
+.ubox{
+  flex:1;height:60px;background:none;border:4px solid var(--frame);color:var(--ink);
+  cursor:pointer;font-family:inherit;font-size:16px;font-weight:800;letter-spacing:.06em;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+}
+.ubox.split{flex:1.6;padding:0;}
+.ubox.split .seg{flex:1;height:100%;display:flex;align-items:center;justify-content:center;font-size:17px;}
+.ubox.split .seg+.seg{border-left:4px solid var(--frame);}
+.ubox.pw{color:var(--signal-red);}
+
+/* ---------- offline banner ---------- */
+.banner{
+  margin:14px 16px 0;border:4px solid var(--signal-red);background:var(--surface);
+  padding:14px;display:flex;flex-direction:column;gap:12px;
+}
+.banner .msg{font-size:17px;font-weight:900;color:var(--signal-red);text-transform:uppercase;letter-spacing:.03em;line-height:1.35;}
+.banner .sub{font-size:12.5px;font-weight:600;color:var(--ink-dim);line-height:1.55;margin-top:-4px;}
+.banner .acts{display:flex;gap:10px;}
+.banner .retry{
+  flex:1;height:52px;border:4px solid var(--signal-red);background:var(--signal-red);color:#000000;
+  /* black ink on red fill — the only inverted button in the product */
+  font-family:inherit;font-size:15px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;
+}
+.banner .later{
+  flex:1;height:52px;border:4px solid var(--frame);background:none;color:var(--ink);
+  font-family:inherit;font-size:14px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;
+}
+
+/* ---------- bottom sheet launcher ---------- */
+.launcher{
+  flex:0 0 auto;border-top:4px solid var(--frame);background:var(--screen);
+  padding:12px 16px 24px;
+}
+.grabber{width:56px;height:6px;background:var(--ink-dim);margin:0 auto 14px;}
+.launch-row{display:flex;gap:6px;}
+.launch{
+  flex:1;background:none;border:3px solid var(--frame);color:var(--ink);cursor:pointer;
+  font-family:inherit;height:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+}
+.launch .g{font-size:17px;}
+.launch small{font-size:8px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-dim);}
+
+/* ---------- TVs screen: empty state ---------- */
+.mgmt{flex:1;display:flex;flex-direction:column;padding:24px 16px 0;}
+.mgmt .big{
+  font-size:52px;font-weight:900;color:var(--ink);text-transform:uppercase;
+  letter-spacing:-.02em;line-height:1.02;margin:40px 0 18px;
+}
+.mgmt .lede{font-size:14px;font-weight:500;color:var(--ink-dim);line-height:1.7;border-left:4px solid var(--ink-dim);padding-left:14px;margin-bottom:36px;}
+.scanbox{border:4px solid var(--frame);padding:18px;margin-bottom:24px;}
+.scanbox .row{display:flex;justify-content:space-between;font-size:12.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink);padding:7px 0;}
+.scanbox .row+.row{border-top:2px solid var(--ink-faint);}
+.scanbox .row span:last-child{color:var(--ink-dim);}
+.bigbtn{
+  height:88px;border:4px solid var(--frame);background:var(--ink);color:#000000; /* inverted: white fill, black 900 type */
+  font-family:inherit;font-size:21px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;
+}
+.smallnote{font-size:11.5px;font-weight:600;color:var(--ink-faint);text-align:center;margin-top:14px;line-height:1.6;text-transform:uppercase;letter-spacing:.08em;}
+
+/* ---------- ring legend ---------- */
+.legend{max-width:1140px;margin:66px auto 0;border-top:4px solid var(--frame);padding-top:28px;}
+.legend h2{font-size:14px;letter-spacing:.28em;text-transform:uppercase;color:var(--ink);font-weight:900;margin-bottom:24px;}
+.legend .states{display:flex;flex-wrap:wrap;gap:30px;}
+.lstate{display:flex;flex-direction:column;align-items:center;gap:12px;width:130px;}
+.lring{width:60px;height:60px;border:6px solid var(--frame);}
+.lring.l-idle{border-color:var(--ink-dim);}
+.lring.l-pulse{border-color:var(--frame);box-shadow:0 0 0 5px #000000,0 0 0 9px var(--ink-faint);}
+  /* pulse drawn as a hard second outline — no blurs in this direction */
+.lring.l-solid{border-color:var(--signal-green);}
+.lring.l-amber{border-color:var(--signal-amber);}
+.lring.l-red{border-color:var(--signal-red);}
+.lstate small{font-size:10.5px;color:var(--page-ink-dim);text-align:center;line-height:1.6;text-transform:uppercase;letter-spacing:.08em;font-weight:700;}
+.lstate small b{display:block;color:var(--page-ink);font-weight:900;font-size:12px;}
+</style>
+</head>
+<body>
+
+<header class="doc">
+  <div class="kicker">UniRem · UX Direction 4 of 4</div>
+  <h1>Signal Brutalist</h1>
+  <p class="rationale">
+    Built for eyes that are on the TV: pure black/white at 4px outlines, type at 900 weight, targets
+    so large they can be hit from peripheral vision one-handed in the dark. There is no decoration,
+    no radius, no gradient, and no motion — states cut instantly and every ring state is also written
+    in words, because a color should never be the only messenger. Three hues exist in the entire
+    product, and all three belong to the ring.
+  </p>
+  <ul class="facts">
+    <li><b>Hero mode shown:</b> (b) big-pad — oversized swipe slab (swipe = D-pad, tap = OK) with floating function-key row. Mode (a) thumb-arc exists as the alternate hero.</li>
+    <li><b>Ring states depicted:</b> Phone 1 — idle (full white outline) · Phone 2 — red + offline banner. Legend shows all five.</li>
+    <li><b>Secondary screen:</b> TVs management — empty state.</li>
+    <li><b>State variant:</b> empty state ("No TVs yet — Add your first TV") + offline banner.</li>
+    <li><b>Motion implication:</b> none. The only permitted animation is a 1Hz hard blink while unconfirmed.</li>
+  </ul>
+</header>
+
+<main class="stage">
+
+  <!-- ============ PHONE 1 — HERO, BIG-PAD, RING: IDLE ============ -->
+  <figure class="device">
+    <div class="phone">
+      <div class="statusbar"><span>■■□□ LTE</span><span>21:47 ▪▪▪ 84%</span></div>
+      <div class="topbar">
+        <button class="tvswitch">📺 Living Room TV <span class="caret">▾</span></button>
+        <button class="gear" title="Settings">⚙</button>
+      </div>
+
+      <!-- one-time unsupported-key chip -->
+      <div class="chip">
+        <span class="tag">Note</span>
+        <span>This TV doesn't report Play — it may still work.</span>
+        <span class="x">×</span>
+      </div>
+
+      <div class="hero">
+        <!-- floating function-key row -->
+        <div class="fnrow">
+          <button class="fk"><span class="g">⌂</span><small>Home</small></button>
+          <button class="fk"><span class="g">↩</span><small>Back</small></button>
+          <button class="fk"><span class="g">🎬</span><small>Apps</small></button>
+          <button class="fk"><span class="g">🔍</span><small>Search</small></button>
+          <button class="fk power"><span class="g">⏻</span><small>Power</small></button>
+        </div>
+
+        <!-- the slab: ring = the outline itself, state IDLE -->
+        <div class="padbox">
+          <div class="ring" title="Ring state: idle">
+            <div class="pad">
+              <button class="dir d-up">▲</button>
+              <button class="dir d-left">◀</button>
+              <button class="ok"><b>OK</b><span class="g">●</span><small>Tap pad</small></button>
+              <button class="dir d-right">▶</button>
+              <button class="dir d-down">▼</button>
+              <div class="rule mono">Swipe = arrows · Tap = OK</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="stateline mono"><span class="lamp idle"></span>Ring: idle — last key confirmed 21:46</div>
+
+        <!-- utility strip -->
+        <div class="util">
+          <div class="ubox split">
+            <span class="seg">🔉−</span><span class="seg">🔇</span><span class="seg">🔉＋</span>
+          </div>
+          <button class="ubox">⏯</button>
+          <button class="ubox pw">⏻</button>
+        </div>
+      </div>
+
+      <div class="launcher">
+        <div class="grabber"></div>
+        <div class="launch-row">
+          <button class="launch"><span class="g">⌨</span><small>Text</small></button>
+          <button class="launch"><span class="g">🎤</span><small>Voice</small></button>
+          <button class="launch"><span class="g">👆</span><small>Pad</small></button>
+          <button class="launch"><span class="g">📶</span><small>Cast</small></button>
+          <button class="launch"><span class="g">🪞</span><small>Mirror</small></button>
+          <button class="launch"><span class="g">⏻</span><small>Wake</small></button>
+        </div>
+      </div>
+    </div>
+    <figcaption>
+      <b>Hero — big-pad mode (b).</b> Ring state: <b>idle</b> — the slab's own 6px outline is the
+      ring, so there is nothing extra to perceive. The mono status line restates the ring in words
+      ("idle — last key confirmed 21:46"): redundancy is the point. Every target ≥ 52px tall.
+    </figcaption>
+  </figure>
+
+  <!-- ============ PHONE 2 — HERO, RING: RED OFFLINE + BANNER ============ -->
+  <figure class="device">
+    <div class="phone">
+      <div class="statusbar"><span>■□□□ No Wi-Fi</span><span>21:52 ▪ 83%</span></div>
+      <div class="topbar">
+        <button class="tvswitch">📺 Living Room TV <span class="caret">▾</span></button>
+        <button class="gear" title="Settings">⚙</button>
+      </div>
+
+      <!-- offline banner: explains, one next action -->
+      <div class="banner">
+        <div class="msg">TV didn't answer — retry?</div>
+        <div class="sub">Last confirmed key: 21:46. Volume and power are blind until the TV answers.</div>
+        <div class="acts">
+          <button class="later">Not now</button>
+          <button class="retry">Retry</button>
+        </div>
+      </div>
+
+      <div class="hero">
+        <div class="padbox" style="padding-top:16px;">
+          <!-- ring state: RED offline — outline itself turns red -->
+          <div class="ring red" title="Ring state: red (offline)">
+            <div class="pad" style="border-color:var(--signal-red);">
+              <button class="dir d-up" style="color:var(--ink-dim);">▲</button>
+              <button class="dir d-left" style="color:var(--ink-dim);">◀</button>
+              <button class="ok" style="color:var(--ink-dim);"><b>OK</b><span class="g">●</span><small>Tap pad</small></button>
+              <button class="dir d-right" style="color:var(--ink-dim);">▶</button>
+              <button class="dir d-down" style="color:var(--ink-dim);">▼</button>
+              <div class="rule mono">Offline — keys still send, nothing confirms</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="stateline mono"><span class="lamp red"></span>Ring: red — offline since 21:49</div>
+
+        <div class="util">
+          <div class="ubox split">
+            <span class="seg">🔉−</span><span class="seg">🔇</span><span class="seg">🔉＋</span>
+          </div>
+          <button class="ubox">⏯</button>
+          <button class="ubox pw">⏻</button>
+        </div>
+      </div>
+
+      <div class="launcher">
+        <div class="grabber"></div>
+        <div class="launch-row">
+          <button class="launch"><span class="g">⌨</span><small>Text</small></button>
+          <button class="launch"><span class="g">🎤</span><small>Voice</small></button>
+          <button class="launch" style="border-color:var(--ink-faint);"><span class="g" style="color:var(--ink-faint);">👆</span><small>Pad</small></button>
+          <button class="launch"><span class="g">📶</span><small>Cast</small></button>
+          <button class="launch"><span class="g">🪞</span><small>Mirror</small></button>
+          <button class="launch"><span class="g">⏻</span><small>Wake</small></button>
+        </div>
+      </div>
+    </div>
+    <figcaption>
+      <b>Same hero — ring state: red (offline).</b> The outline of the slab turns red, the banner
+      states the fact ("TV didn't answer"), gives the last confirmed timestamp, and offers exactly
+      one next action: <b>Retry</b> (the only inverted button on the screen). Keys stay usable —
+      the pad says plainly that sending still works, confirming doesn't.
+    </figcaption>
+  </figure>
+
+  <!-- ============ PHONE 3 — SECONDARY: TVS, EMPTY STATE ============ -->
+  <figure class="device">
+    <div class="phone">
+      <div class="statusbar"><span>■■□□ LTE</span><span>21:44 ▪▪▪ 85%</span></div>
+      <div class="topbar">
+        <button class="tvswitch">📺 Your TVs <span class="caret">▾</span></button>
+        <button class="gear" title="Settings">⚙</button>
+      </div>
+
+      <div class="mgmt">
+        <div class="big">No TVs<br>yet.</div>
+        <p class="lede">
+          UniRem controls Samsung TVs over your Wi-Fi. Nothing is sent to the internet —
+          pairing happens between your phone and the TV, in this room.
+        </p>
+
+        <div class="scanbox mono">
+          <div class="row"><span>Network</span><span>Home-WiFi-5G</span></div>
+          <div class="row"><span>Scan</span><span>0 TVs found</span></div>
+          <div class="row"><span>Pointer probe</span><span>Not run</span></div>
+        </div>
+
+        <button class="bigbtn">＋ Add your first TV</button>
+        <p class="smallnote">The TV must be on the same Wi-Fi as this phone.</p>
+      </div>
+
+      <div class="launcher">
+        <div class="grabber"></div>
+        <div class="launch-row">
+          <button class="launch" style="border-color:var(--ink-faint);"><span class="g" style="color:var(--ink-faint);">⌨</span><small>Text</small></button>
+          <button class="launch" style="border-color:var(--ink-faint);"><span class="g" style="color:var(--ink-faint);">🎤</span><small>Voice</small></button>
+          <button class="launch" style="border-color:var(--ink-faint);"><span class="g" style="color:var(--ink-faint);">👆</span><small>Pad</small></button>
+          <button class="launch" style="border-color:var(--ink-faint);"><span class="g" style="color:var(--ink-faint);">📶</span><small>Cast</small></button>
+          <button class="launch" style="border-color:var(--ink-faint);"><span class="g" style="color:var(--ink-faint);">🪞</span><small>Mirror</small></button>
+          <button class="launch" style="border-color:var(--ink-faint);"><span class="g" style="color:var(--ink-faint);">⏻</span><small>Wake</small></button>
+        </div>
+      </div>
+    </div>
+    <figcaption>
+      <b>Secondary screen — TVs management, empty state.</b> "No TVs yet" at 52px/900 — readable
+      across the room. A mono readout states exactly what the app knows (network, scan result,
+      pointer probe: not run). One action, inverted white. Launcher row dimmed to disabled gray:
+      with no TV, nothing to launch — the UI tells the truth about itself.
+    </figcaption>
+  </figure>
+
+</main>
+
+<!-- ============ RING LEGEND — ALL FIVE STATES ============ -->
+<section class="legend">
+  <h2>Ring — all five states (square, because circles are decoration)</h2>
+  <div class="states">
+    <div class="lstate"><span class="lring l-idle"></span><small><b>Idle</b>gray outline, recedes</small></div>
+    <div class="lstate"><span class="lring l-pulse"></span><small><b>Submitted</b>hard double outline, one 200ms cut</small></div>
+    <div class="lstate"><span class="lring l-solid"></span><small><b>Observed</b>green — TV confirmed</small></div>
+    <div class="lstate"><span class="lring l-amber"></span><small><b>Unconfirmed</b>amber, 1Hz hard blink</small></div>
+    <div class="lstate"><span class="lring l-red"></span><small><b>Offline</b>red + banner + retry</small></div>
+  </div>
+</section>
+
+</body>
+</html>

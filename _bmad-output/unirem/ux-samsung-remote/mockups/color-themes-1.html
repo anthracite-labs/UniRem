@@ -1,0 +1,837 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UniRem — Color Theme Variations (6 directions · dark + light)</title>
+<style>
+/* ═══════════════════════════════════════════════════════════════════════
+   UniRem — color theme discovery board.
+   Product: Android (Jetpack Compose) universal remote for Samsung Tizen TVs.
+   Dark-mode-first (dark living room, one-handed use, eyes on the TV).
+   Each variation defines the full semantic token set as CSS custom
+   properties on .dk (dark, primary) and .lt (light, secondary, simplified).
+   All hex values are documented in the per-variation comment blocks below
+   and can be lifted directly into Compose Color() tokens.
+
+   Ring family story (signature honesty element), in every theme:
+   ring.idle → ring.submitted (soft pulse) → ring.observed (settled/positive)
+   ring.unconfirmed (amber-ish) · ring.offline (red-ish)
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── shared structural CSS ─────────────────────────────────────────── */
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  background:#0E0F12;color:#E8E9EC;padding:30px 22px 64px;line-height:1.45;
+}
+header.pg{max-width:1820px;margin:0 auto 28px}
+header.pg h1{font-size:23px;letter-spacing:-.01em}
+header.pg p{color:#9BA0A8;font-size:13px;margin-top:8px;max-width:92ch}
+header.pg .legend{margin-top:10px;font-size:11.5px;color:#7E848D}
+header.pg .legend b{color:#B9BEC6;font-weight:600}
+
+.grid{max-width:1820px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(545px,1fr));gap:24px}
+@media(max-width:620px){.grid{grid-template-columns:1fr}body{padding:16px 10px 40px}}
+
+.variation{background:#16181C;border:1px solid #26282E;border-radius:18px;padding:18px}
+.vhead{margin-bottom:12px}
+.vhead h2{font-size:16.5px;display:flex;align-items:center;gap:9px}
+.vhead h2 .dot{width:11px;height:11px;border-radius:50%;background:var(--head-accent);flex:none}
+.vhead .reg{font-size:12px;color:#9BA0A8;font-style:italic;margin-top:4px}
+
+.modes{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:780px){.modes{grid-template-columns:1fr}}
+
+.panel{border-radius:14px;padding:12px;border:1px solid rgba(128,128,128,.32);
+  background:var(--surface-base);color:var(--text-primary)}
+.mode-tag{display:inline-block;font-size:9px;font-weight:800;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--text-secondary);
+  border:1px solid rgba(128,128,128,.45);padding:2px 9px;border-radius:99px;margin-bottom:9px}
+
+.chips{display:grid;grid-template-columns:repeat(auto-fill,minmax(152px,1fr));gap:5px}
+.chip{display:flex;align-items:center;gap:6px;background:var(--surface-raised);
+  border:1px solid rgba(128,128,128,.24);border-radius:7px;padding:4px 6px;font-size:9.5px}
+.chip b{font-weight:600;color:var(--text-primary);white-space:nowrap}
+.chip code{margin-left:auto;font-family:ui-monospace,"SF Mono","Cascadia Code",Consolas,monospace;
+  font-size:9px;color:var(--text-secondary);white-space:nowrap}
+.sw{width:13px;height:13px;border-radius:4px;flex:none;border:1px solid rgba(128,128,128,.5)}
+.sw.ring{background:transparent;border:3px solid transparent;border-radius:50%;width:14px;height:14px}
+.lnote{margin-top:8px;font-size:9px;line-height:1.6;color:var(--text-secondary);
+  font-family:ui-monospace,"SF Mono","Cascadia Code",Consolas,monospace}
+
+.remote{margin-top:12px;background:var(--surface-raised);
+  border:1px solid rgba(128,128,128,.26);border-radius:16px;padding:12px}
+.topbar{display:flex;justify-content:space-between;align-items:center;gap:8px;
+  font-size:12px;font-weight:700;padding:7px 10px;background:var(--surface-key);border-radius:10px}
+.tb-state{font-size:9.5px;font-weight:600;letter-spacing:.05em;white-space:nowrap}
+.dpad{display:grid;grid-template-columns:repeat(3,42px);grid-auto-rows:36px;gap:6px;
+  justify-content:center;margin:13px 0}
+.key{background:var(--surface-key);color:var(--text-primary);
+  border:1px solid rgba(128,128,128,.22);border-radius:9px;
+  font-size:13px;line-height:1;font-family:inherit;cursor:pointer}
+.key.ok{border-radius:50%;background:var(--accent-brand);color:var(--text-on-accent);
+  font-weight:700;border-color:transparent;
+  box-shadow:0 0 0 2px var(--ring-observed),0 0 14px -3px var(--ring-observed)}
+.keyrow{display:flex;gap:8px;justify-content:center}
+.key.pwr{width:42px;background:var(--accent-brand-pressed);color:var(--text-on-accent);border-color:transparent}
+.key.vol{width:88px;border-radius:99px;background:var(--accent-brand);color:var(--text-on-accent);border-color:transparent;font-weight:700}
+.state-chip{display:inline-flex;align-items:center;gap:6px;margin-top:12px;padding:5px 11px;
+  border-radius:999px;border:1px solid var(--ring-offline);color:var(--ring-offline);
+  font-size:11px;font-weight:600}
+.state-chip i{width:7px;height:7px;border-radius:50%;background:var(--ring-offline);flex:none}
+.ringrow{display:flex;justify-content:space-between;gap:4px;margin-top:12px;padding-top:10px;
+  border-top:1px dashed rgba(128,128,128,.35)}
+.rs{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:8px;
+  color:var(--text-secondary);letter-spacing:.02em;text-align:center}
+.rs i{width:13px;height:13px;border-radius:50%;border:2.5px solid transparent;background:transparent}
+
+/* ═══════════════ VARIATION 1 · MIDNIGHT EMBER ═══════════════
+   Register: cozy cinema — true-black OLED warmed by a glowing ember.
+   DARK
+     surface.base #000000 · surface.raised #121010 · surface.key #1F1A17
+     text.primary #F5EFE9 · text.secondary #A89B8F · text.onAccent #1A0E00
+     accent.brand #FF9E2C · accent.brandPressed #E07B10
+     ring.idle #463A32 · ring.submitted #FFD37A · ring.observed #FF8A3D
+     ring.unconfirmed #E8B33D · ring.offline #E03131
+     semantic.success #58C776 · semantic.warning #FFB84D · semantic.danger #E5484D
+   LIGHT
+     surface.base #FFF8F2 · surface.raised #FFFFFF · surface.key #F3E7DB
+     text.primary #241A12 · text.secondary #7A6A5C · text.onAccent #FFFFFF
+     accent.brand #D9700E · accent.brandPressed #B85C00
+     ring.idle #D8C8B8 · ring.submitted #F2B95C · ring.observed #E86F1F
+     ring.unconfirmed #C98F12 · ring.offline #CC2F2F
+     semantic.success #2FA554 · semantic.warning #D89A21 · semantic.danger #CC2F2F
+   ═══════════════════════════════════════════════════════════ */
+.t1{--head-accent:#FF9E2C}
+.t1 .dk{
+  --surface-base:#000000;--surface-raised:#121010;--surface-key:#1F1A17;
+  --text-primary:#F5EFE9;--text-secondary:#A89B8F;--text-on-accent:#1A0E00;
+  --accent-brand:#FF9E2C;--accent-brand-pressed:#E07B10;
+  --ring-idle:#463A32;--ring-submitted:#FFD37A;--ring-observed:#FF8A3D;
+  --ring-unconfirmed:#E8B33D;--ring-offline:#E03131;
+  --sem-success:#58C776;--sem-warning:#FFB84D;--sem-danger:#E5484D;
+}
+.t1 .lt{
+  --surface-base:#FFF8F2;--surface-raised:#FFFFFF;--surface-key:#F3E7DB;
+  --text-primary:#241A12;--text-secondary:#7A6A5C;--text-on-accent:#FFFFFF;
+  --accent-brand:#D9700E;--accent-brand-pressed:#B85C00;
+  --ring-idle:#D8C8B8;--ring-submitted:#F2B95C;--ring-observed:#E86F1F;
+  --ring-unconfirmed:#C98F12;--ring-offline:#CC2F2F;
+  --sem-success:#2FA554;--sem-warning:#D89A21;--sem-danger:#CC2F2F;
+}
+
+/* ═══════════════ VARIATION 2 · TIZEN BLUE ═══════════════
+   Register: first-party trust — cool navy and Samsung-native blue.
+   DARK
+     surface.base #091120 · surface.raised #101C31 · surface.key #1A2B48
+     text.primary #EAF1FA · text.secondary #8CA1C0 · text.onAccent #FFFFFF
+     accent.brand #2F80FF · accent.brandPressed #1B62D6
+     ring.idle #2C3E5C · ring.submitted #6FA8FF · ring.observed #2DD4A7
+     ring.unconfirmed #E8B33C · ring.offline #F05252
+     semantic.success #34D399 · semantic.warning #F5B942 · semantic.danger #EF4444
+   LIGHT
+     surface.base #F3F7FC · surface.raised #FFFFFF · surface.key #E2EBF6
+     text.primary #10203A · text.secondary #5C708C · text.onAccent #FFFFFF
+     accent.brand #1B66E0 · accent.brandPressed #124FAF
+     ring.idle #B9C9DD · ring.submitted #6FA3F0 · ring.observed #17A97F
+     ring.unconfirmed #B5831A · ring.offline #D64545
+     semantic.success #17A97F · semantic.warning #C99322 · semantic.danger #D64545
+   ═══════════════════════════════════════════════════════════ */
+.t2{--head-accent:#2F80FF}
+.t2 .dk{
+  --surface-base:#091120;--surface-raised:#101C31;--surface-key:#1A2B48;
+  --text-primary:#EAF1FA;--text-secondary:#8CA1C0;--text-on-accent:#FFFFFF;
+  --accent-brand:#2F80FF;--accent-brand-pressed:#1B62D6;
+  --ring-idle:#2C3E5C;--ring-submitted:#6FA8FF;--ring-observed:#2DD4A7;
+  --ring-unconfirmed:#E8B33C;--ring-offline:#F05252;
+  --sem-success:#34D399;--sem-warning:#F5B942;--sem-danger:#EF4444;
+}
+.t2 .lt{
+  --surface-base:#F3F7FC;--surface-raised:#FFFFFF;--surface-key:#E2EBF6;
+  --text-primary:#10203A;--text-secondary:#5C708C;--text-on-accent:#FFFFFF;
+  --accent-brand:#1B66E0;--accent-brand-pressed:#124FAF;
+  --ring-idle:#B9C9DD;--ring-submitted:#6FA3F0;--ring-observed:#17A97F;
+  --ring-unconfirmed:#B5831A;--ring-offline:#D64545;
+  --sem-success:#17A97F;--sem-warning:#C99322;--sem-danger:#D64545;
+}
+
+/* ═══════════════ VARIATION 3 · GRAPHITE MINT ═══════════════
+   Register: calm modern utility — quiet graphite, a fresh breath of mint.
+   DARK
+     surface.base #151719 · surface.raised #1E2124 · surface.key #2A2E32
+     text.primary #ECEEF0 · text.secondary #98A1A9 · text.onAccent #0B1A13
+     accent.brand #3DDC97 · accent.brandPressed #22B877
+     ring.idle #343A3E · ring.submitted #86E9BE · ring.observed #3DDC97
+     ring.unconfirmed #E8D44D · ring.offline #FF7A6B
+     semantic.success #3DDC97 · semantic.warning #E8C84D · semantic.danger #FF6B5A
+   LIGHT
+     surface.base #F6F8F7 · surface.raised #FFFFFF · surface.key #E7ECEE
+     text.primary #1A1E20 · text.secondary #5E676D · text.onAccent #FFFFFF
+     accent.brand #149A63 · accent.brandPressed #0D7A4D
+     ring.idle #C4CCCF · ring.submitted #6FD3A8 · ring.observed #149A63
+     ring.unconfirmed #9E8A10 · ring.offline #E05244
+     semantic.success #149A63 · semantic.warning #9E8A10 · semantic.danger #E05244
+   ═══════════════════════════════════════════════════════════ */
+.t3{--head-accent:#3DDC97}
+.t3 .dk{
+  --surface-base:#151719;--surface-raised:#1E2124;--surface-key:#2A2E32;
+  --text-primary:#ECEEF0;--text-secondary:#98A1A9;--text-on-accent:#0B1A13;
+  --accent-brand:#3DDC97;--accent-brand-pressed:#22B877;
+  --ring-idle:#343A3E;--ring-submitted:#86E9BE;--ring-observed:#3DDC97;
+  --ring-unconfirmed:#E8D44D;--ring-offline:#FF7A6B;
+  --sem-success:#3DDC97;--sem-warning:#E8C84D;--sem-danger:#FF6B5A;
+}
+.t3 .lt{
+  --surface-base:#F6F8F7;--surface-raised:#FFFFFF;--surface-key:#E7ECEE;
+  --text-primary:#1A1E20;--text-secondary:#5E676D;--text-on-accent:#FFFFFF;
+  --accent-brand:#149A63;--accent-brand-pressed:#0D7A4D;
+  --ring-idle:#C4CCCF;--ring-submitted:#6FD3A8;--ring-observed:#149A63;
+  --ring-unconfirmed:#9E8A10;--ring-offline:#E05244;
+  --sem-success:#149A63;--sem-warning:#9E8A10;--sem-danger:#E05244;
+}
+
+/* ═══════════════ VARIATION 4 · WARM SLATE ═══════════════
+   Register: earthy premium — clay, sage and terracotta; low blue light
+   for night viewing.
+   DARK
+     surface.base #1B1816 · surface.raised #262120 · surface.key #342D28
+     text.primary #F2EDE7 · text.secondary #ABA096 · text.onAccent #FFF4EC
+     accent.brand #C96F4A · accent.brandPressed #A85533
+     ring.idle #403830 · ring.submitted #E3A87F · ring.observed #9CB97F
+     ring.unconfirmed #D9A441 · ring.offline #C2483C
+     semantic.success #9CB97F · semantic.warning #D9A441 · semantic.danger #C2483C
+   LIGHT
+     surface.base #FAF6F1 · surface.raised #FFFDFA · surface.key #EFE5DA
+     text.primary #2A221B · text.secondary #7C6E60 · text.onAccent #FFF4EC
+     accent.brand #B25A38 · accent.brandPressed #8F4527
+     ring.idle #D3C5B6 · ring.submitted #D89A6E · ring.observed #6E8F52
+     ring.unconfirmed #A87A1E · ring.offline #B23A2E
+     semantic.success #6E8F52 · semantic.warning #A87A1E · semantic.danger #B23A2E
+   ═══════════════════════════════════════════════════════════ */
+.t4{--head-accent:#C96F4A}
+.t4 .dk{
+  --surface-base:#1B1816;--surface-raised:#262120;--surface-key:#342D28;
+  --text-primary:#F2EDE7;--text-secondary:#ABA096;--text-on-accent:#FFF4EC;
+  --accent-brand:#C96F4A;--accent-brand-pressed:#A85533;
+  --ring-idle:#403830;--ring-submitted:#E3A87F;--ring-observed:#9CB97F;
+  --ring-unconfirmed:#D9A441;--ring-offline:#C2483C;
+  --sem-success:#9CB97F;--sem-warning:#D9A441;--sem-danger:#C2483C;
+}
+.t4 .lt{
+  --surface-base:#FAF6F1;--surface-raised:#FFFDFA;--surface-key:#EFE5DA;
+  --text-primary:#2A221B;--text-secondary:#7C6E60;--text-on-accent:#FFF4EC;
+  --accent-brand:#B25A38;--accent-brand-pressed:#8F4527;
+  --ring-idle:#D3C5B6;--ring-submitted:#D89A6E;--ring-observed:#6E8F52;
+  --ring-unconfirmed:#A87A1E;--ring-offline:#B23A2E;
+  --sem-success:#6E8F52;--sem-warning:#A87A1E;--sem-danger:#B23A2E;
+}
+
+/* ═══════════════ VARIATION 5 · HIGH CONTRAST MONO ═══════════════
+   Register: brutalist legibility — black, white, one volt of color.
+   Ring states encoded via lightness + single-hue shifts.
+   DARK
+     surface.base #000000 · surface.raised #0D0D0D · surface.key #1A1A1A
+     text.primary #FFFFFF · text.secondary #B5B5B5 · text.onAccent #000000
+     accent.brand #E8FF2B · accent.brandPressed #C6DB00
+     ring.idle #555555 · ring.submitted #FFFFFF · ring.observed #E8FF2B
+     ring.unconfirmed #FFC400 · ring.offline #FF3B30
+     semantic.success #E8FF2B · semantic.warning #FFC400 · semantic.danger #FF3B30
+   LIGHT
+     surface.base #FFFFFF · surface.raised #F4F4F4 · surface.key #E4E4E4
+     text.primary #000000 · text.secondary #4A4A4A · text.onAccent #FFFFFF
+     accent.brand #6E7A00 · accent.brandPressed #565F00
+     ring.idle #8A8A8A · ring.submitted #111111 · ring.observed #6E7A00
+     ring.unconfirmed #8A6100 · ring.offline #C0190F
+     semantic.success #6E7A00 · semantic.warning #8A6100 · semantic.danger #C0190F
+   ═══════════════════════════════════════════════════════════ */
+.t5{--head-accent:#E8FF2B}
+.t5 .dk{
+  --surface-base:#000000;--surface-raised:#0D0D0D;--surface-key:#1A1A1A;
+  --text-primary:#FFFFFF;--text-secondary:#B5B5B5;--text-on-accent:#000000;
+  --accent-brand:#E8FF2B;--accent-brand-pressed:#C6DB00;
+  --ring-idle:#555555;--ring-submitted:#FFFFFF;--ring-observed:#E8FF2B;
+  --ring-unconfirmed:#FFC400;--ring-offline:#FF3B30;
+  --sem-success:#E8FF2B;--sem-warning:#FFC400;--sem-danger:#FF3B30;
+}
+.t5 .lt{
+  --surface-base:#FFFFFF;--surface-raised:#F4F4F4;--surface-key:#E4E4E4;
+  --text-primary:#000000;--text-secondary:#4A4A4A;--text-on-accent:#FFFFFF;
+  --accent-brand:#6E7A00;--accent-brand-pressed:#565F00;
+  --ring-idle:#8A8A8A;--ring-submitted:#111111;--ring-observed:#6E7A00;
+  --ring-unconfirmed:#8A6100;--ring-offline:#C0190F;
+  --sem-success:#6E7A00;--sem-warning:#8A6100;--sem-danger:#C0190F;
+}
+
+/* ═══════════════ VARIATION 6 · DEEP TEAL ═══════════════
+   Register: upscale distinctive — teal ink written in pale gold; unlike
+   any first-party remote app.
+   DARK
+     surface.base #061A1D · surface.raised #0C2529 · surface.key #143238
+     text.primary #E7F2F1 · text.secondary #8FAEAC · text.onAccent #08201F
+     accent.brand #E9C87E · accent.brandPressed #CBA659
+     ring.idle #1E454B · ring.submitted #F2DFAE · ring.observed #5FD3B4
+     ring.unconfirmed #E3B34C · ring.offline #E2564D
+     semantic.success #5FD3B4 · semantic.warning #E3B34C · semantic.danger #E2564D
+   LIGHT
+     surface.base #F1F7F6 · surface.raised #FFFFFF · surface.key #DEEDEB
+     text.primary #0E2424 · text.secondary #55706E · text.onAccent #FFFFFF
+     accent.brand #8A6A28 · accent.brandPressed #6E531D
+     ring.idle #B4C9C7 · ring.submitted #CBA659 · ring.observed #2A9D7E
+     ring.unconfirmed #96711A · ring.offline #C7443B
+     semantic.success #2A9D7E · semantic.warning #96711A · semantic.danger #C7443B
+   ═══════════════════════════════════════════════════════════ */
+.t6{--head-accent:#E9C87E}
+.t6 .dk{
+  --surface-base:#061A1D;--surface-raised:#0C2529;--surface-key:#143238;
+  --text-primary:#E7F2F1;--text-secondary:#8FAEAC;--text-on-accent:#08201F;
+  --accent-brand:#E9C87E;--accent-brand-pressed:#CBA659;
+  --ring-idle:#1E454B;--ring-submitted:#F2DFAE;--ring-observed:#5FD3B4;
+  --ring-unconfirmed:#E3B34C;--ring-offline:#E2564D;
+  --sem-success:#5FD3B4;--sem-warning:#E3B34C;--sem-danger:#E2564D;
+}
+.t6 .lt{
+  --surface-base:#F1F7F6;--surface-raised:#FFFFFF;--surface-key:#DEEDEB;
+  --text-primary:#0E2424;--text-secondary:#55706E;--text-on-accent:#FFFFFF;
+  --accent-brand:#8A6A28;--accent-brand-pressed:#6E531D;
+  --ring-idle:#B4C9C7;--ring-submitted:#CBA659;--ring-observed:#2A9D7E;
+  --ring-unconfirmed:#96711A;--ring-offline:#C7443B;
+  --sem-success:#2A9D7E;--sem-warning:#96711A;--sem-danger:#C7443B;
+}
+</style>
+</head>
+<body>
+
+<header class="pg">
+  <h1>UniRem · Color Theme Variations</h1>
+  <p>Six palette directions for a dark-mode-first Android remote for Samsung Tizen TVs. Dark (primary) and light (secondary, simplified) shown side by side. Every panel carries the full semantic token set as labeled hex chips plus a mini-remote snippet in real strings.</p>
+  <p class="legend"><b>Ambient state ring family</b> — the app's signature honesty element, shown as the five rings under each remote: <b>idle → submitted</b> (soft pulse) <b>→ observed</b> (settled) · <b>unconfirmed</b> (TV state unknown) · <b>offline</b> (TV unreachable). The D-pad center key wears the ring in its <b>observed</b> color.</p>
+</header>
+
+<main class="grid">
+
+<!-- ════════════ VARIATION 1 · MIDNIGHT EMBER ════════════ -->
+<section class="variation t1">
+  <div class="vhead">
+    <h2><span class="dot"></span>1 · Midnight Ember</h2>
+    <p class="reg">Cozy cinema — true-black OLED warmed by a glowing ember; the living room at 11pm.</p>
+  </div>
+  <div class="modes">
+    <div class="panel dk">
+      <span class="mode-tag">Dark · primary</span>
+      <div class="chips">
+        <div class="chip"><i class="sw" style="background:var(--surface-base)"></i><b>surface.base</b><code>#000000</code></div>
+        <div class="chip"><i class="sw" style="background:var(--surface-raised)"></i><b>surface.raised</b><code>#121010</code></div>
+        <div class="chip"><i class="sw" style="background:var(--surface-key)"></i><b>surface.key</b><code>#1F1A17</code></div>
+        <div class="chip"><i class="sw" style="background:var(--text-primary)"></i><b>text.primary</b><code>#F5EFE9</code></div>
+        <div class="chip"><i class="sw" style="background:var(--text-secondary)"></i><b>text.secondary</b><code>#A89B8F</code></div>
+        <div class="chip"><i class="sw" style="background:var(--text-on-accent)"></i><b>text.onAccent</b><code>#1A0E00</code></div>
+        <div class="chip"><i class="sw" style="background:var(--accent-brand)"></i><b>accent.brand</b><code>#FF9E2C</code></div>
+        <div class="chip"><i class="sw" style="background:var(--accent-brand-pressed)"></i><b>accent.brandPressed</b><code>#E07B10</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-idle)"></i><b>ring.idle</b><code>#463A32</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-submitted)"></i><b>ring.submitted</b><code>#FFD37A</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-observed)"></i><b>ring.observed</b><code>#FF8A3D</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-unconfirmed)"></i><b>ring.unconfirmed</b><code>#E8B33D</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-offline)"></i><b>ring.offline</b><code>#E03131</code></div>
+        <div class="chip"><i class="sw" style="background:var(--sem-success)"></i><b>semantic.success</b><code>#58C776</code></div>
+        <div class="chip"><i class="sw" style="background:var(--sem-warning)"></i><b>semantic.warning</b><code>#FFB84D</code></div>
+        <div class="chip"><i class="sw" style="background:var(--sem-danger)"></i><b>semantic.danger</b><code>#E5484D</code></div>
+      </div>
+      <div class="remote">
+        <div class="topbar"><span>📺 Living Room TV ▾</span><span class="tb-state" style="color:var(--ring-observed)">● observed</span></div>
+        <div class="dpad">
+          <span></span><button class="key" type="button">▲</button><span></span>
+          <button class="key" type="button">◀</button><button class="key ok" type="button">●</button><button class="key" type="button">▶</button>
+          <span></span><button class="key" type="button">▼</button><span></span>
+        </div>
+        <div class="keyrow">
+          <button class="key pwr" type="button">⏻</button>
+          <button class="key vol" type="button">🔉</button>
+        </div>
+        <div><span class="state-chip"><i></i>TV didn't answer — retry?</span></div>
+        <div class="ringrow">
+          <span class="rs"><i style="border-color:var(--ring-idle)"></i>idle</span>
+          <span class="rs"><i style="border-color:var(--ring-submitted)"></i>submitted</span>
+          <span class="rs"><i style="border-color:var(--ring-observed)"></i>observed</span>
+          <span class="rs"><i style="border-color:var(--ring-unconfirmed)"></i>unconfirmed</span>
+          <span class="rs"><i style="border-color:var(--ring-offline)"></i>offline</span>
+        </div>
+      </div>
+    </div>
+    <div class="panel lt">
+      <span class="mode-tag">Light · secondary</span>
+      <div class="chips">
+        <div class="chip"><i class="sw" style="background:var(--surface-base)"></i><b>surface.base</b><code>#FFF8F2</code></div>
+        <div class="chip"><i class="sw" style="background:var(--surface-raised)"></i><b>surface.raised</b><code>#FFFFFF</code></div>
+        <div class="chip"><i class="sw" style="background:var(--surface-key)"></i><b>surface.key</b><code>#F3E7DB</code></div>
+        <div class="chip"><i class="sw" style="background:var(--accent-brand)"></i><b>accent.brand</b><code>#D9700E</code></div>
+        <div class="chip"><i class="sw" style="background:var(--accent-brand-pressed)"></i><b>accent.brandPressed</b><code>#B85C00</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-idle)"></i><b>ring.idle</b><code>#D8C8B8</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-submitted)"></i><b>ring.submitted</b><code>#F2B95C</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-observed)"></i><b>ring.observed</b><code>#E86F1F</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-unconfirmed)"></i><b>ring.unconfirmed</b><code>#C98F12</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-offline)"></i><b>ring.offline</b><code>#CC2F2F</code></div>
+      </div>
+      <p class="lnote">text.primary #241A12 · text.secondary #7A6A5C · text.onAccent #FFFFFF<br>success #2FA554 · warning #D89A21 · danger #CC2F2F</p>
+      <div class="remote">
+        <div class="topbar"><span>📺 Living Room TV ▾</span><span class="tb-state" style="color:var(--ring-observed)">● observed</span></div>
+        <div class="dpad">
+          <span></span><button class="key" type="button">▲</button><span></span>
+          <button class="key" type="button">◀</button><button class="key ok" type="button">●</button><button class="key" type="button">▶</button>
+          <span></span><button class="key" type="button">▼</button><span></span>
+        </div>
+        <div class="keyrow">
+          <button class="key pwr" type="button">⏻</button>
+          <button class="key vol" type="button">🔉</button>
+        </div>
+        <div><span class="state-chip"><i></i>TV didn't answer — retry?</span></div>
+        <div class="ringrow">
+          <span class="rs"><i style="border-color:var(--ring-idle)"></i>idle</span>
+          <span class="rs"><i style="border-color:var(--ring-submitted)"></i>submitted</span>
+          <span class="rs"><i style="border-color:var(--ring-observed)"></i>observed</span>
+          <span class="rs"><i style="border-color:var(--ring-unconfirmed)"></i>unconfirmed</span>
+          <span class="rs"><i style="border-color:var(--ring-offline)"></i>offline</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════ VARIATION 2 · TIZEN BLUE ════════════ -->
+<section class="variation t2">
+  <div class="vhead">
+    <h2><span class="dot"></span>2 · Tizen Blue</h2>
+    <p class="reg">First-party trust — cool navy and Samsung-native blue; confident and familiar.</p>
+  </div>
+  <div class="modes">
+    <div class="panel dk">
+      <span class="mode-tag">Dark · primary</span>
+      <div class="chips">
+        <div class="chip"><i class="sw" style="background:var(--surface-base)"></i><b>surface.base</b><code>#091120</code></div>
+        <div class="chip"><i class="sw" style="background:var(--surface-raised)"></i><b>surface.raised</b><code>#101C31</code></div>
+        <div class="chip"><i class="sw" style="background:var(--surface-key)"></i><b>surface.key</b><code>#1A2B48</code></div>
+        <div class="chip"><i class="sw" style="background:var(--text-primary)"></i><b>text.primary</b><code>#EAF1FA</code></div>
+        <div class="chip"><i class="sw" style="background:var(--text-secondary)"></i><b>text.secondary</b><code>#8CA1C0</code></div>
+        <div class="chip"><i class="sw" style="background:var(--text-on-accent)"></i><b>text.onAccent</b><code>#FFFFFF</code></div>
+        <div class="chip"><i class="sw" style="background:var(--accent-brand)"></i><b>accent.brand</b><code>#2F80FF</code></div>
+        <div class="chip"><i class="sw" style="background:var(--accent-brand-pressed)"></i><b>accent.brandPressed</b><code>#1B62D6</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-idle)"></i><b>ring.idle</b><code>#2C3E5C</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-submitted)"></i><b>ring.submitted</b><code>#6FA8FF</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-observed)"></i><b>ring.observed</b><code>#2DD4A7</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-unconfirmed)"></i><b>ring.unconfirmed</b><code>#E8B33C</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-offline)"></i><b>ring.offline</b><code>#F05252</code></div>
+        <div class="chip"><i class="sw" style="background:var(--sem-success)"></i><b>semantic.success</b><code>#34D399</code></div>
+        <div class="chip"><i class="sw" style="background:var(--sem-warning)"></i><b>semantic.warning</b><code>#F5B942</code></div>
+        <div class="chip"><i class="sw" style="background:var(--sem-danger)"></i><b>semantic.danger</b><code>#EF4444</code></div>
+      </div>
+      <div class="remote">
+        <div class="topbar"><span>📺 Living Room TV ▾</span><span class="tb-state" style="color:var(--ring-observed)">● observed</span></div>
+        <div class="dpad">
+          <span></span><button class="key" type="button">▲</button><span></span>
+          <button class="key" type="button">◀</button><button class="key ok" type="button">●</button><button class="key" type="button">▶</button>
+          <span></span><button class="key" type="button">▼</button><span></span>
+        </div>
+        <div class="keyrow">
+          <button class="key pwr" type="button">⏻</button>
+          <button class="key vol" type="button">🔉</button>
+        </div>
+        <div><span class="state-chip"><i></i>TV didn't answer — retry?</span></div>
+        <div class="ringrow">
+          <span class="rs"><i style="border-color:var(--ring-idle)"></i>idle</span>
+          <span class="rs"><i style="border-color:var(--ring-submitted)"></i>submitted</span>
+          <span class="rs"><i style="border-color:var(--ring-observed)"></i>observed</span>
+          <span class="rs"><i style="border-color:var(--ring-unconfirmed)"></i>unconfirmed</span>
+          <span class="rs"><i style="border-color:var(--ring-offline)"></i>offline</span>
+        </div>
+      </div>
+    </div>
+    <div class="panel lt">
+      <span class="mode-tag">Light · secondary</span>
+      <div class="chips">
+        <div class="chip"><i class="sw" style="background:var(--surface-base)"></i><b>surface.base</b><code>#F3F7FC</code></div>
+        <div class="chip"><i class="sw" style="background:var(--surface-raised)"></i><b>surface.raised</b><code>#FFFFFF</code></div>
+        <div class="chip"><i class="sw" style="background:var(--surface-key)"></i><b>surface.key</b><code>#E2EBF6</code></div>
+        <div class="chip"><i class="sw" style="background:var(--accent-brand)"></i><b>accent.brand</b><code>#1B66E0</code></div>
+        <div class="chip"><i class="sw" style="background:var(--accent-brand-pressed)"></i><b>accent.brandPressed</b><code>#124FAF</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-idle)"></i><b>ring.idle</b><code>#B9C9DD</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-submitted)"></i><b>ring.submitted</b><code>#6FA3F0</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-observed)"></i><b>ring.observed</b><code>#17A97F</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-unconfirmed)"></i><b>ring.unconfirmed</b><code>#B5831A</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-offline)"></i><b>ring.offline</b><code>#D64545</code></div>
+      </div>
+      <p class="lnote">text.primary #10203A · text.secondary #5C708C · text.onAccent #FFFFFF<br>success #17A97F · warning #C99322 · danger #D64545</p>
+      <div class="remote">
+        <div class="topbar"><span>📺 Living Room TV ▾</span><span class="tb-state" style="color:var(--ring-observed)">● observed</span></div>
+        <div class="dpad">
+          <span></span><button class="key" type="button">▲</button><span></span>
+          <button class="key" type="button">◀</button><button class="key ok" type="button">●</button><button class="key" type="button">▶</button>
+          <span></span><button class="key" type="button">▼</button><span></span>
+        </div>
+        <div class="keyrow">
+          <button class="key pwr" type="button">⏻</button>
+          <button class="key vol" type="button">🔉</button>
+        </div>
+        <div><span class="state-chip"><i></i>TV didn't answer — retry?</span></div>
+        <div class="ringrow">
+          <span class="rs"><i style="border-color:var(--ring-idle)"></i>idle</span>
+          <span class="rs"><i style="border-color:var(--ring-submitted)"></i>submitted</span>
+          <span class="rs"><i style="border-color:var(--ring-observed)"></i>observed</span>
+          <span class="rs"><i style="border-color:var(--ring-unconfirmed)"></i>unconfirmed</span>
+          <span class="rs"><i style="border-color:var(--ring-offline)"></i>offline</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════ VARIATION 3 · GRAPHITE MINT ════════════ -->
+<section class="variation t3">
+  <div class="vhead">
+    <h2><span class="dot"></span>3 · Graphite Mint</h2>
+    <p class="reg">Calm modern utility — quiet neutral graphite with a fresh breath of mint.</p>
+  </div>
+  <div class="modes">
+    <div class="panel dk">
+      <span class="mode-tag">Dark · primary</span>
+      <div class="chips">
+        <div class="chip"><i class="sw" style="background:var(--surface-base)"></i><b>surface.base</b><code>#151719</code></div>
+        <div class="chip"><i class="sw" style="background:var(--surface-raised)"></i><b>surface.raised</b><code>#1E2124</code></div>
+        <div class="chip"><i class="sw" style="background:var(--surface-key)"></i><b>surface.key</b><code>#2A2E32</code></div>
+        <div class="chip"><i class="sw" style="background:var(--text-primary)"></i><b>text.primary</b><code>#ECEEF0</code></div>
+        <div class="chip"><i class="sw" style="background:var(--text-secondary)"></i><b>text.secondary</b><code>#98A1A9</code></div>
+        <div class="chip"><i class="sw" style="background:var(--text-on-accent)"></i><b>text.onAccent</b><code>#0B1A13</code></div>
+        <div class="chip"><i class="sw" style="background:var(--accent-brand)"></i><b>accent.brand</b><code>#3DDC97</code></div>
+        <div class="chip"><i class="sw" style="background:var(--accent-brand-pressed)"></i><b>accent.brandPressed</b><code>#22B877</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-idle)"></i><b>ring.idle</b><code>#343A3E</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-submitted)"></i><b>ring.submitted</b><code>#86E9BE</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-observed)"></i><b>ring.observed</b><code>#3DDC97</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-unconfirmed)"></i><b>ring.unconfirmed</b><code>#E8D44D</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-offline)"></i><b>ring.offline</b><code>#FF7A6B</code></div>
+        <div class="chip"><i class="sw" style="background:var(--sem-success)"></i><b>semantic.success</b><code>#3DDC97</code></div>
+        <div class="chip"><i class="sw" style="background:var(--sem-warning)"></i><b>semantic.warning</b><code>#E8C84D</code></div>
+        <div class="chip"><i class="sw" style="background:var(--sem-danger)"></i><b>semantic.danger</b><code>#FF6B5A</code></div>
+      </div>
+      <div class="remote">
+        <div class="topbar"><span>📺 Living Room TV ▾</span><span class="tb-state" style="color:var(--ring-observed)">● observed</span></div>
+        <div class="dpad">
+          <span></span><button class="key" type="button">▲</button><span></span>
+          <button class="key" type="button">◀</button><button class="key ok" type="button">●</button><button class="key" type="button">▶</button>
+          <span></span><button class="key" type="button">▼</button><span></span>
+        </div>
+        <div class="keyrow">
+          <button class="key pwr" type="button">⏻</button>
+          <button class="key vol" type="button">🔉</button>
+        </div>
+        <div><span class="state-chip"><i></i>TV didn't answer — retry?</span></div>
+        <div class="ringrow">
+          <span class="rs"><i style="border-color:var(--ring-idle)"></i>idle</span>
+          <span class="rs"><i style="border-color:var(--ring-submitted)"></i>submitted</span>
+          <span class="rs"><i style="border-color:var(--ring-observed)"></i>observed</span>
+          <span class="rs"><i style="border-color:var(--ring-unconfirmed)"></i>unconfirmed</span>
+          <span class="rs"><i style="border-color:var(--ring-offline)"></i>offline</span>
+        </div>
+      </div>
+    </div>
+    <div class="panel lt">
+      <span class="mode-tag">Light · secondary</span>
+      <div class="chips">
+        <div class="chip"><i class="sw" style="background:var(--surface-base)"></i><b>surface.base</b><code>#F6F8F7</code></div>
+        <div class="chip"><i class="sw" style="background:var(--surface-raised)"></i><b>surface.raised</b><code>#FFFFFF</code></div>
+        <div class="chip"><i class="sw" style="background:var(--surface-key)"></i><b>surface.key</b><code>#E7ECEE</code></div>
+        <div class="chip"><i class="sw" style="background:var(--accent-brand)"></i><b>accent.brand</b><code>#149A63</code></div>
+        <div class="chip"><i class="sw" style="background:var(--accent-brand-pressed)"></i><b>accent.brandPressed</b><code>#0D7A4D</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-idle)"></i><b>ring.idle</b><code>#C4CCCF</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-submitted)"></i><b>ring.submitted</b><code>#6FD3A8</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-observed)"></i><b>ring.observed</b><code>#149A63</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-unconfirmed)"></i><b>ring.unconfirmed</b><code>#9E8A10</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-offline)"></i><b>ring.offline</b><code>#E05244</code></div>
+      </div>
+      <p class="lnote">text.primary #1A1E20 · text.secondary #5E676D · text.onAccent #FFFFFF<br>success #149A63 · warning #9E8A10 · danger #E05244</p>
+      <div class="remote">
+        <div class="topbar"><span>📺 Living Room TV ▾</span><span class="tb-state" style="color:var(--ring-observed)">● observed</span></div>
+        <div class="dpad">
+          <span></span><button class="key" type="button">▲</button><span></span>
+          <button class="key" type="button">◀</button><button class="key ok" type="button">●</button><button class="key" type="button">▶</button>
+          <span></span><button class="key" type="button">▼</button><span></span>
+        </div>
+        <div class="keyrow">
+          <button class="key pwr" type="button">⏻</button>
+          <button class="key vol" type="button">🔉</button>
+        </div>
+        <div><span class="state-chip"><i></i>TV didn't answer — retry?</span></div>
+        <div class="ringrow">
+          <span class="rs"><i style="border-color:var(--ring-idle)"></i>idle</span>
+          <span class="rs"><i style="border-color:var(--ring-submitted)"></i>submitted</span>
+          <span class="rs"><i style="border-color:var(--ring-observed)"></i>observed</span>
+          <span class="rs"><i style="border-color:var(--ring-unconfirmed)"></i>unconfirmed</span>
+          <span class="rs"><i style="border-color:var(--ring-offline)"></i>offline</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════ VARIATION 4 · WARM SLATE ════════════ -->
+<section class="variation t4">
+  <div class="vhead">
+    <h2><span class="dot"></span>4 · Warm Slate</h2>
+    <p class="reg">Earthy premium — clay, sage and terracotta; low blue light for night viewing.</p>
+  </div>
+  <div class="modes">
+    <div class="panel dk">
+      <span class="mode-tag">Dark · primary</span>
+      <div class="chips">
+        <div class="chip"><i class="sw" style="background:var(--surface-base)"></i><b>surface.base</b><code>#1B1816</code></div>
+        <div class="chip"><i class="sw" style="background:var(--surface-raised)"></i><b>surface.raised</b><code>#262120</code></div>
+        <div class="chip"><i class="sw" style="background:var(--surface-key)"></i><b>surface.key</b><code>#342D28</code></div>
+        <div class="chip"><i class="sw" style="background:var(--text-primary)"></i><b>text.primary</b><code>#F2EDE7</code></div>
+        <div class="chip"><i class="sw" style="background:var(--text-secondary)"></i><b>text.secondary</b><code>#ABA096</code></div>
+        <div class="chip"><i class="sw" style="background:var(--text-on-accent)"></i><b>text.onAccent</b><code>#FFF4EC</code></div>
+        <div class="chip"><i class="sw" style="background:var(--accent-brand)"></i><b>accent.brand</b><code>#C96F4A</code></div>
+        <div class="chip"><i class="sw" style="background:var(--accent-brand-pressed)"></i><b>accent.brandPressed</b><code>#A85533</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-idle)"></i><b>ring.idle</b><code>#403830</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-submitted)"></i><b>ring.submitted</b><code>#E3A87F</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-observed)"></i><b>ring.observed</b><code>#9CB97F</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-unconfirmed)"></i><b>ring.unconfirmed</b><code>#D9A441</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-offline)"></i><b>ring.offline</b><code>#C2483C</code></div>
+        <div class="chip"><i class="sw" style="background:var(--sem-success)"></i><b>semantic.success</b><code>#9CB97F</code></div>
+        <div class="chip"><i class="sw" style="background:var(--sem-warning)"></i><b>semantic.warning</b><code>#D9A441</code></div>
+        <div class="chip"><i class="sw" style="background:var(--sem-danger)"></i><b>semantic.danger</b><code>#C2483C</code></div>
+      </div>
+      <div class="remote">
+        <div class="topbar"><span>📺 Living Room TV ▾</span><span class="tb-state" style="color:var(--ring-observed)">● observed</span></div>
+        <div class="dpad">
+          <span></span><button class="key" type="button">▲</button><span></span>
+          <button class="key" type="button">◀</button><button class="key ok" type="button">●</button><button class="key" type="button">▶</button>
+          <span></span><button class="key" type="button">▼</button><span></span>
+        </div>
+        <div class="keyrow">
+          <button class="key pwr" type="button">⏻</button>
+          <button class="key vol" type="button">🔉</button>
+        </div>
+        <div><span class="state-chip"><i></i>TV didn't answer — retry?</span></div>
+        <div class="ringrow">
+          <span class="rs"><i style="border-color:var(--ring-idle)"></i>idle</span>
+          <span class="rs"><i style="border-color:var(--ring-submitted)"></i>submitted</span>
+          <span class="rs"><i style="border-color:var(--ring-observed)"></i>observed</span>
+          <span class="rs"><i style="border-color:var(--ring-unconfirmed)"></i>unconfirmed</span>
+          <span class="rs"><i style="border-color:var(--ring-offline)"></i>offline</span>
+        </div>
+      </div>
+    </div>
+    <div class="panel lt">
+      <span class="mode-tag">Light · secondary</span>
+      <div class="chips">
+        <div class="chip"><i class="sw" style="background:var(--surface-base)"></i><b>surface.base</b><code>#FAF6F1</code></div>
+        <div class="chip"><i class="sw" style="background:var(--surface-raised)"></i><b>surface.raised</b><code>#FFFDFA</code></div>
+        <div class="chip"><i class="sw" style="background:var(--surface-key)"></i><b>surface.key</b><code>#EFE5DA</code></div>
+        <div class="chip"><i class="sw" style="background:var(--accent-brand)"></i><b>accent.brand</b><code>#B25A38</code></div>
+        <div class="chip"><i class="sw" style="background:var(--accent-brand-pressed)"></i><b>accent.brandPressed</b><code>#8F4527</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-idle)"></i><b>ring.idle</b><code>#D3C5B6</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-submitted)"></i><b>ring.submitted</b><code>#D89A6E</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-observed)"></i><b>ring.observed</b><code>#6E8F52</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-unconfirmed)"></i><b>ring.unconfirmed</b><code>#A87A1E</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-offline)"></i><b>ring.offline</b><code>#B23A2E</code></div>
+      </div>
+      <p class="lnote">text.primary #2A221B · text.secondary #7C6E60 · text.onAccent #FFF4EC<br>success #6E8F52 · warning #A87A1E · danger #B23A2E</p>
+      <div class="remote">
+        <div class="topbar"><span>📺 Living Room TV ▾</span><span class="tb-state" style="color:var(--ring-observed)">● observed</span></div>
+        <div class="dpad">
+          <span></span><button class="key" type="button">▲</button><span></span>
+          <button class="key" type="button">◀</button><button class="key ok" type="button">●</button><button class="key" type="button">▶</button>
+          <span></span><button class="key" type="button">▼</button><span></span>
+        </div>
+        <div class="keyrow">
+          <button class="key pwr" type="button">⏻</button>
+          <button class="key vol" type="button">🔉</button>
+        </div>
+        <div><span class="state-chip"><i></i>TV didn't answer — retry?</span></div>
+        <div class="ringrow">
+          <span class="rs"><i style="border-color:var(--ring-idle)"></i>idle</span>
+          <span class="rs"><i style="border-color:var(--ring-submitted)"></i>submitted</span>
+          <span class="rs"><i style="border-color:var(--ring-observed)"></i>observed</span>
+          <span class="rs"><i style="border-color:var(--ring-unconfirmed)"></i>unconfirmed</span>
+          <span class="rs"><i style="border-color:var(--ring-offline)"></i>offline</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════ VARIATION 5 · HIGH CONTRAST MONO ════════════ -->
+<section class="variation t5">
+  <div class="vhead">
+    <h2><span class="dot"></span>5 · High Contrast Mono</h2>
+    <p class="reg">Brutalist legibility — pure black &amp; white with a single volt of color; ring states via lightness + hue shifts.</p>
+  </div>
+  <div class="modes">
+    <div class="panel dk">
+      <span class="mode-tag">Dark · primary</span>
+      <div class="chips">
+        <div class="chip"><i class="sw" style="background:var(--surface-base)"></i><b>surface.base</b><code>#000000</code></div>
+        <div class="chip"><i class="sw" style="background:var(--surface-raised)"></i><b>surface.raised</b><code>#0D0D0D</code></div>
+        <div class="chip"><i class="sw" style="background:var(--surface-key)"></i><b>surface.key</b><code>#1A1A1A</code></div>
+        <div class="chip"><i class="sw" style="background:var(--text-primary)"></i><b>text.primary</b><code>#FFFFFF</code></div>
+        <div class="chip"><i class="sw" style="background:var(--text-secondary)"></i><b>text.secondary</b><code>#B5B5B5</code></div>
+        <div class="chip"><i class="sw" style="background:var(--text-on-accent)"></i><b>text.onAccent</b><code>#000000</code></div>
+        <div class="chip"><i class="sw" style="background:var(--accent-brand)"></i><b>accent.brand</b><code>#E8FF2B</code></div>
+        <div class="chip"><i class="sw" style="background:var(--accent-brand-pressed)"></i><b>accent.brandPressed</b><code>#C6DB00</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-idle)"></i><b>ring.idle</b><code>#555555</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-submitted)"></i><b>ring.submitted</b><code>#FFFFFF</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-observed)"></i><b>ring.observed</b><code>#E8FF2B</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-unconfirmed)"></i><b>ring.unconfirmed</b><code>#FFC400</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-offline)"></i><b>ring.offline</b><code>#FF3B30</code></div>
+        <div class="chip"><i class="sw" style="background:var(--sem-success)"></i><b>semantic.success</b><code>#E8FF2B</code></div>
+        <div class="chip"><i class="sw" style="background:var(--sem-warning)"></i><b>semantic.warning</b><code>#FFC400</code></div>
+        <div class="chip"><i class="sw" style="background:var(--sem-danger)"></i><b>semantic.danger</b><code>#FF3B30</code></div>
+      </div>
+      <div class="remote">
+        <div class="topbar"><span>📺 Living Room TV ▾</span><span class="tb-state" style="color:var(--ring-observed)">● observed</span></div>
+        <div class="dpad">
+          <span></span><button class="key" type="button">▲</button><span></span>
+          <button class="key" type="button">◀</button><button class="key ok" type="button">●</button><button class="key" type="button">▶</button>
+          <span></span><button class="key" type="button">▼</button><span></span>
+        </div>
+        <div class="keyrow">
+          <button class="key pwr" type="button">⏻</button>
+          <button class="key vol" type="button">🔉</button>
+        </div>
+        <div><span class="state-chip"><i></i>TV didn't answer — retry?</span></div>
+        <div class="ringrow">
+          <span class="rs"><i style="border-color:var(--ring-idle)"></i>idle</span>
+          <span class="rs"><i style="border-color:var(--ring-submitted)"></i>submitted</span>
+          <span class="rs"><i style="border-color:var(--ring-observed)"></i>observed</span>
+          <span class="rs"><i style="border-color:var(--ring-unconfirmed)"></i>unconfirmed</span>
+          <span class="rs"><i style="border-color:var(--ring-offline)"></i>offline</span>
+        </div>
+      </div>
+    </div>
+    <div class="panel lt">
+      <span class="mode-tag">Light · secondary</span>
+      <div class="chips">
+        <div class="chip"><i class="sw" style="background:var(--surface-base)"></i><b>surface.base</b><code>#FFFFFF</code></div>
+        <div class="chip"><i class="sw" style="background:var(--surface-raised)"></i><b>surface.raised</b><code>#F4F4F4</code></div>
+        <div class="chip"><i class="sw" style="background:var(--surface-key)"></i><b>surface.key</b><code>#E4E4E4</code></div>
+        <div class="chip"><i class="sw" style="background:var(--accent-brand)"></i><b>accent.brand</b><code>#6E7A00</code></div>
+        <div class="chip"><i class="sw" style="background:var(--accent-brand-pressed)"></i><b>accent.brandPressed</b><code>#565F00</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-idle)"></i><b>ring.idle</b><code>#8A8A8A</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-submitted)"></i><b>ring.submitted</b><code>#111111</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-observed)"></i><b>ring.observed</b><code>#6E7A00</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-unconfirmed)"></i><b>ring.unconfirmed</b><code>#8A6100</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-offline)"></i><b>ring.offline</b><code>#C0190F</code></div>
+      </div>
+      <p class="lnote">text.primary #000000 · text.secondary #4A4A4A · text.onAccent #FFFFFF<br>success #6E7A00 · warning #8A6100 · danger #C0190F</p>
+      <div class="remote">
+        <div class="topbar"><span>📺 Living Room TV ▾</span><span class="tb-state" style="color:var(--ring-observed)">● observed</span></div>
+        <div class="dpad">
+          <span></span><button class="key" type="button">▲</button><span></span>
+          <button class="key" type="button">◀</button><button class="key ok" type="button">●</button><button class="key" type="button">▶</button>
+          <span></span><button class="key" type="button">▼</button><span></span>
+        </div>
+        <div class="keyrow">
+          <button class="key pwr" type="button">⏻</button>
+          <button class="key vol" type="button">🔉</button>
+        </div>
+        <div><span class="state-chip"><i></i>TV didn't answer — retry?</span></div>
+        <div class="ringrow">
+          <span class="rs"><i style="border-color:var(--ring-idle)"></i>idle</span>
+          <span class="rs"><i style="border-color:var(--ring-submitted)"></i>submitted</span>
+          <span class="rs"><i style="border-color:var(--ring-observed)"></i>observed</span>
+          <span class="rs"><i style="border-color:var(--ring-unconfirmed)"></i>unconfirmed</span>
+          <span class="rs"><i style="border-color:var(--ring-offline)"></i>offline</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════ VARIATION 6 · DEEP TEAL ════════════ -->
+<section class="variation t6">
+  <div class="vhead">
+    <h2><span class="dot"></span>6 · Deep Teal</h2>
+    <p class="reg">Upscale distinctive — teal ink written in pale gold; unlike any first-party remote app.</p>
+  </div>
+  <div class="modes">
+    <div class="panel dk">
+      <span class="mode-tag">Dark · primary</span>
+      <div class="chips">
+        <div class="chip"><i class="sw" style="background:var(--surface-base)"></i><b>surface.base</b><code>#061A1D</code></div>
+        <div class="chip"><i class="sw" style="background:var(--surface-raised)"></i><b>surface.raised</b><code>#0C2529</code></div>
+        <div class="chip"><i class="sw" style="background:var(--surface-key)"></i><b>surface.key</b><code>#143238</code></div>
+        <div class="chip"><i class="sw" style="background:var(--text-primary)"></i><b>text.primary</b><code>#E7F2F1</code></div>
+        <div class="chip"><i class="sw" style="background:var(--text-secondary)"></i><b>text.secondary</b><code>#8FAEAC</code></div>
+        <div class="chip"><i class="sw" style="background:var(--text-on-accent)"></i><b>text.onAccent</b><code>#08201F</code></div>
+        <div class="chip"><i class="sw" style="background:var(--accent-brand)"></i><b>accent.brand</b><code>#E9C87E</code></div>
+        <div class="chip"><i class="sw" style="background:var(--accent-brand-pressed)"></i><b>accent.brandPressed</b><code>#CBA659</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-idle)"></i><b>ring.idle</b><code>#1E454B</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-submitted)"></i><b>ring.submitted</b><code>#F2DFAE</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-observed)"></i><b>ring.observed</b><code>#5FD3B4</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-unconfirmed)"></i><b>ring.unconfirmed</b><code>#E3B34C</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-offline)"></i><b>ring.offline</b><code>#E2564D</code></div>
+        <div class="chip"><i class="sw" style="background:var(--sem-success)"></i><b>semantic.success</b><code>#5FD3B4</code></div>
+        <div class="chip"><i class="sw" style="background:var(--sem-warning)"></i><b>semantic.warning</b><code>#E3B34C</code></div>
+        <div class="chip"><i class="sw" style="background:var(--sem-danger)"></i><b>semantic.danger</b><code>#E2564D</code></div>
+      </div>
+      <div class="remote">
+        <div class="topbar"><span>📺 Living Room TV ▾</span><span class="tb-state" style="color:var(--ring-observed)">● observed</span></div>
+        <div class="dpad">
+          <span></span><button class="key" type="button">▲</button><span></span>
+          <button class="key" type="button">◀</button><button class="key ok" type="button">●</button><button class="key" type="button">▶</button>
+          <span></span><button class="key" type="button">▼</button><span></span>
+        </div>
+        <div class="keyrow">
+          <button class="key pwr" type="button">⏻</button>
+          <button class="key vol" type="button">🔉</button>
+        </div>
+        <div><span class="state-chip"><i></i>TV didn't answer — retry?</span></div>
+        <div class="ringrow">
+          <span class="rs"><i style="border-color:var(--ring-idle)"></i>idle</span>
+          <span class="rs"><i style="border-color:var(--ring-submitted)"></i>submitted</span>
+          <span class="rs"><i style="border-color:var(--ring-observed)"></i>observed</span>
+          <span class="rs"><i style="border-color:var(--ring-unconfirmed)"></i>unconfirmed</span>
+          <span class="rs"><i style="border-color:var(--ring-offline)"></i>offline</span>
+        </div>
+      </div>
+    </div>
+    <div class="panel lt">
+      <span class="mode-tag">Light · secondary</span>
+      <div class="chips">
+        <div class="chip"><i class="sw" style="background:var(--surface-base)"></i><b>surface.base</b><code>#F1F7F6</code></div>
+        <div class="chip"><i class="sw" style="background:var(--surface-raised)"></i><b>surface.raised</b><code>#FFFFFF</code></div>
+        <div class="chip"><i class="sw" style="background:var(--surface-key)"></i><b>surface.key</b><code>#DEEDEB</code></div>
+        <div class="chip"><i class="sw" style="background:var(--accent-brand)"></i><b>accent.brand</b><code>#8A6A28</code></div>
+        <div class="chip"><i class="sw" style="background:var(--accent-brand-pressed)"></i><b>accent.brandPressed</b><code>#6E531D</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-idle)"></i><b>ring.idle</b><code>#B4C9C7</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-submitted)"></i><b>ring.submitted</b><code>#CBA659</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-observed)"></i><b>ring.observed</b><code>#2A9D7E</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-unconfirmed)"></i><b>ring.unconfirmed</b><code>#96711A</code></div>
+        <div class="chip"><i class="sw ring" style="border-color:var(--ring-offline)"></i><b>ring.offline</b><code>#C7443B</code></div>
+      </div>
+      <p class="lnote">text.primary #0E2424 · text.secondary #55706E · text.onAccent #FFFFFF<br>success #2A9D7E · warning #96711A · danger #C7443B</p>
+      <div class="remote">
+        <div class="topbar"><span>📺 Living Room TV ▾</span><span class="tb-state" style="color:var(--ring-observed)">● observed</span></div>
+        <div class="dpad">
+          <span></span><button class="key" type="button">▲</button><span></span>
+          <button class="key" type="button">◀</button><button class="key ok" type="button">●</button><button class="key" type="button">▶</button>
+          <span></span><button class="key" type="button">▼</button><span></span>
+        </div>
+        <div class="keyrow">
+          <button class="key pwr" type="button">⏻</button>
+          <button class="key vol" type="button">🔉</button>
+        </div>
+        <div><span class="state-chip"><i></i>TV didn't answer — retry?</span></div>
+        <div class="ringrow">
+          <span class="rs"><i style="border-color:var(--ring-idle)"></i>idle</span>
+          <span class="rs"><i style="border-color:var(--ring-submitted)"></i>submitted</span>
+          <span class="rs"><i style="border-color:var(--ring-observed)"></i>observed</span>
+          <span class="rs"><i style="border-color:var(--ring-unconfirmed)"></i>unconfirmed</span>
+          <span class="rs"><i style="border-color:var(--ring-offline)"></i>offline</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+</body>
+</html>
