@@ -14,6 +14,14 @@ captures/
 .externalNativeBuild/
 .cxx/
 
+# Spike A harness (tools/spike-a) — throwaway build output only. The harness is
+# standalone, not a Gradle module; its local SDK path stays machine-local.
+tools/spike-a/.gradle/
+tools/spike-a/.kotlin/
+tools/spike-a/build/
+tools/spike-a/local.properties
+tools/spike-a/app/build/
+
 # Machine-local SDK path. Never shared: it names one developer's disk layout.
 local.properties
 

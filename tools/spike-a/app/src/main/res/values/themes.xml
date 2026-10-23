@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.SpikeA" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">#FF0E1216</item>
+        <item name="android:colorAccent">#FF6FE3B0</item>
+        <item name="android:statusBarColor">#FF0E1216</item>
+        <item name="android:navigationBarColor">#FF0E1216</item>
+        <item name="android:textColorPrimary">#FFE7ECEF</item>
+        <item name="android:textColorSecondary">#FF9AA6AD</item>
+    </style>
+</resources>
