@@ -1094,3 +1094,298 @@ So that I can recover without guessing whether the TV is off, the network failed
 **And** it adds no cloud fallback, no WSS-to-WS fallback, no trust-all manager, no command queue or retry, no background socket, foreground service, wake lock, or token/pin logging,
 **And** the status surface is a precursor; Story 1.10 replaces it with the Remote and reuses `ConnectionHealth` and the banner,
 **And** the re-pair flow reuses Story 1.5; no second pairing implementation exists.
+
+### Story 1.8: Earn capability labels from the versioned matrix
+
+As the pilot user and matrix owner,
+I want UniRem to resolve what this TV can do from a versioned matrix and give me a debug harness to record what I actually observed,
+So that the app never claims support it hasn't earned and the pilot has a defensible denominator.
+
+**FRs:** FR41 (full), FR38 (read-only asset, debug overlay, no stored label subset), FR12 (capability-limitation record precursor); NFR2, NFR12, NFR14, NFR18; UX-DR22, UX-DR27, UX-DR43; AD-4, AD-5.
+
+**Out of scope:** remote keys/D-pad, `CommandTracker`, ring, launcher enablement, one-TV switcher, full Remote, trust sheet/Forget changes, full TV details/four-label list, Settings, text, pointer, voice, cast, mirror, wake, multi-TV, one-time chips/dismissals, probe capture, cloud/telemetry, downloaded matrix.
+
+**Acceptance Criteria:**
+
+**AC1 — Versioned matrix asset and schema**
+**Given** the Spike A reports from Stories 1.1-1.2 and the named pilot TV set,
+**When** the matrix asset is authored,
+**Then** `app/src/main/assets/verification-matrix.json` is the release-readable artifact, with a monotonic top-level `matrixVersion` and rows keyed by byte-exact `model`, byte-exact `firmware`, `NetworkType`, and `CapabilityKey` (capability plus scope),
+**And** every row carries a `matrixVersion` equal to the artifact version, a result (`Pass`, `Partial`, `Ambiguous`, `Fail`, `NotTested`), a generation (`Tizen2016Plus`, `HJ2014_15`, `Unknown`), and an optional evidence note; no row carries a UI label,
+**And** the closed vocabulary is:
+- `Capability`: Keys, Text, Pointer, Wake, Cast, Mirror, Voice
+- `CapabilityScope`: Device, NativeField, AppGrid, PointerBrowser, PointerAppGrid, FormatJpeg, FormatMp3, FormatH264Aac, FormatHevc, Subtitles, Seek
+- `NetworkType`: Wifi, Ethernet, Unknown, reused from Story 1.5
+- `CapabilityLabel`: Works, NotTested, NotSupported, BestEffort
+
+**And** the allowed pairs are validated; an unknown capability/scope pair is rejected,
+**And** the pilot rows seed only the keys Spike A actually observed, at minimum `Keys/Device`; `Keys/Device` is `Pass` only when every MVP key has observed evidence, otherwise `Partial`; no row is invented,
+**And** the literal fallback row is `model="*"`, `firmware="*unknown*"`, `networkType=Unknown`, `Keys/Device=Partial`; it is the only wildcard, it requires both literal sentinels, and it never matches a known firmware,
+**And** the asset contains no token, pin, SPKI, full MAC, IP, or per-device data; it is versioned with the app and never downloaded or edited at runtime.
+
+**AC2 — Resolver precedence and exact matching**
+**Given** a `CapabilityInput` for one TV with its record, asset rows, declared-absent capabilities, and probe results,
+**When** the resolver evaluates a `CapabilityKey`,
+**Then** it applies, in order:
+1. a capability marked declared absent → `NotSupported` for every scope of that capability;
+2. a probe hard-fail for this key → `NotSupported` for this key;
+3. a matrix `Fail` for this key → `NotSupported`;
+4. an H/J 2014-15 generation → `BestEffort`, even with a matrix `Pass`;
+5. a matrix `Pass` → `Works`;
+6. a matrix `Partial`/`Ambiguous`, or a probe `Pass` without a matrix `Pass` → `BestEffort`;
+7. no row and no probe → `NotTested`.
+
+**And** a `NotTested` matrix row resolves to `NotTested`; a `Fail` is never softened to `BestEffort`, and a passing probe never promotes a matrix `Fail`,
+**And** matching is byte-exact on model and firmware, exact on network type and key; no trim, case-fold, locale, normalization, or wildcard except the literal `*unknown*` fallback; a `Wifi` row does not match `Ethernet` or `Unknown`,
+**And** the resolver has no user-confirmation input; user confirmation changes command provenance only,
+**And** it is pure, deterministic, has no Android dependency, returns one label per key, and contains no UI copy.
+
+**AC3 — One display owner and the TV-card label**
+**Given** the paired TV summary,
+**Then** `:app` has exactly one capability display owner, `CapabilityLabelTracker`, exposing `StateFlow<CapabilityLabels>` keyed by `TvId`; it builds `CapabilityInput` from the TV record, asset rows, debug overlay (debug only), declared-absent set, and probe results, and calls the resolver,
+**And** the TV card shows one durable label for `Keys/Device`: "Full control — confirms keys" only when the exact label is `Works`; otherwise "Best-effort — can't confirm commands,"
+**And** the exact four-value label remains available to Epic 2 TV details; the card summary is a confirmation summary, not a support guarantee,
+**And** the label is a text plate, not a colored badge; it does not change with socket health and is not the health dot,
+**And** the label is based on the stored, last-observed firmware; a fresh `/api/v2/` read or re-pair updates it, and the card never claims the firmware is current,
+**And** it recomputes when the TV record, firmware, matrix version, overlay, declared surfaces, or probe results change; no resolved label is stored in Room, DataStore, or preferences,
+**And** the owner is the only caller of the resolver; the card and future TV details read the same flow; no screen caches a label or invents a support claim,
+**And** a session-only target shows "Session only — this TV won't be saved" and no durable capability label,
+**And** the card keeps its existing actions; no dead "Open remote" before Story 1.10,
+**And** the card never says "universal," "works with any Samsung TV," or a blanket support claim.
+
+**AC4 — Debug harness and overlay**
+**Given** a debug build,
+**When** the developer opens the debug-only "Matrix harness" from the paired summary,
+**Then** the harness is absent from release builds and is not one of the 13 product surfaces,
+**And** it shows the active TV's exact model, firmware, network type, loaded `matrixVersion`, each capability key's asset result, resolved label, and matching overlay row,
+**And** model, firmware, and network type are read-only from the TV record; the developer records only a result (`Pass`, `Partial`, `Ambiguous`, `Fail`, `NotTested`) and a short evidence note,
+**And** Save writes one overlay row to the debug-only Room database, replacing the previous row for the same exact key; the row carries model, exact firmware, network type, capability key, result, note, `matrixVersion`, and UTC `observedAt`,
+**And** the harness opens no socket, sends no keys, runs no probe, and makes no observation itself; its copy says "Record only what you observed on the TV,"
+**And** the debug resolver reads asset rows plus overlay rows; an overlay row with the same exact key and the same `matrixVersion` wins; a row with a different version is stale, ignored, and shown as stale with a Clear action,
+**And** the harness can copy its overlay rows as asset-shaped JSON and clear the overlay after confirmation; it never edits the release asset,
+**And** the TV card reflects the same owner immediately after Save,
+**And** the overlay contains no token, pin, SPKI, full MAC, IP, or text payload.
+
+**AC5 — Release reads the asset only**
+**Given** a release build,
+**Then** the debug harness route, overlay database, DAO, and overlay rows are not compiled or reachable; release reads only `app/src/main/assets/verification-matrix.json`,
+**And** a stale debug database on the device is never opened by release,
+**And** no overlay row can satisfy a release gate; the release label is computed from the asset and TV record only,
+**And** debug and release use the same `CapabilityInput.resolve()` path; only the row source differs, and the resolver is not build-variant-aware,
+**And** a release smoke confirms the harness route/strings are absent and the TV-card label matches the asset.
+
+**AC6 — Matrix version, firmware invalidation, and promotion**
+**Given** the matrix asset,
+**Then** a validator rejects a version mismatch, duplicate exact key, missing `*unknown*` fallback, unknown capability/scope pair, unknown network type, blank model/firmware, and malformed JSON,
+**And** a known firmware matches only its exact row; an unknown firmware matches only the literal fallback; a firmware change on the TV record invalidates the old exact row and any overlay row for the old firmware, so the label recomputes to the fallback or `NotTested`; no stored label survives,
+**And** `docs/matrix-promotion.md` documents the runbook: record in the debug harness, copy asset-shaped rows, review the evidence, merge into the asset, bump `matrixVersion`, update the human verification matrix evidence, run `./gradlew build lint :core:test` plus a release smoke, and commit both; promoted overlay rows are cleared and never auto-promoted,
+**And** a `verifyMatrix` task runs the same parser/validator against the shipped asset as part of `check`, so CI catches a malformed asset,
+**And** the harness shows the loaded version and stale rows; a version change requires re-observation or explicit review, not silent reuse.
+
+**AC7 — Unknown, missing, and failure behavior**
+**Given** the asset is missing, malformed, or has no matching row,
+**Then** the app does not crash; affected keys resolve to `NotTested` or the literal fallback and the card shows "Best-effort — can't confirm commands," never "Full control,"
+**And** a missing model, firmware, or network type is "Not reported"/`Unknown`, matches only the literal fallback, and never a known row,
+**And** the app never presents a capability label as a support guarantee; a `Fail` is not hidden, but the key remains usable per FR12 later and the exact label is retained for Epic 2,
+**And** the diagnostic is quiet and redacted; no token, pin, SPKI, full MAC, IP, or text payload appears in the harness, logs, or asset.
+
+**AC8 — Testability**
+**Given** the resolver, asset, display owner, and harness,
+**Then** `:core` JVM tests cover exact matching (case/whitespace/locale differences do not match), unknown-firmware fallback only, network-type matching, H/J capping, declared-absent for every scope, probe fail/pass precedence, matrix pass/partial/ambiguous/fail/not-tested, no user-confirmation input, and one label per key,
+**And** `:app` tests or the `verifyMatrix` task cover the asset schema/version, duplicate keys, missing `*unknown*`, malformed JSON, the single owner recomputing with no stored label, debug overlay precedence and stale versions, release row source ignoring overlay, and TV-card copy mapping,
+**And** a release-mode smoke confirms the harness/overlay is absent and the card reads the asset only,
+**And** no test requires a live TV, asserts a socket write as success, or prints secrets.
+
+**AC9 — Scope discipline**
+**Given** this story,
+**Then** it adds no remote keys/D-pad, `CommandTracker`, ring, launcher enablement, one-TV switcher, full Remote, trust sheet/Forget changes, full TV details/four-label list, Settings, text, pointer, voice, cast, mirror, wake, multi-TV, one-time chips/dismissals, or probe capture,
+**And** it adds no cloud, telemetry, remote config, downloaded matrix, second resolver, second `NetworkType`, second capability display owner, stored resolved label, or release-visible overlay,
+**And** the only visible product change is the one durable TV-card label; the debug harness is developer-only,
+**And** rows for untested features stay absent or `NotTested`; no placeholder support and no "universal" claim,
+**And** the public `:core` surface stays within the architecture allowlist; matrix schema types are nested/under `CapabilityInput`, and the resolver implementation stays internal,
+**And** Story 1.9's switcher and Epic 2's TV details reuse the same resolver/owner without a second implementation.
+
+### Story 1.9: Switch the one paired TV without guessing
+
+As the pilot user,
+I want to open a TV switcher from the topbar, see the one TV I paired, and reach its details,
+So that the app has one explicit target and the switcher is ready for more TVs without changing the model later.
+
+**FRs:** FR6 (one-TV auto-select subset; multi-TV policy in Epic 2), FR7 (target-identity precursor; full rule in Epic 2); UX-DR6, UX-DR7 (one-TV list subset), UX-DR15, UX-DR22, UX-DR26 (switcher sheet), UX-DR27, UX-DR39; NFR9, NFR12, NFR17; AD-3, AD-7.
+
+**Out of scope:** multi-TV storage, multi-TV picker, cold-start choice, "Add a TV," last-used target, Settings/gear, remote keys, full Remote, trust sheet/Forget changes, text, pointer, voice, cast, mirror, wake, session pinning, target-change sheet-close rules, pinned sessions.
+
+**Acceptance Criteria:**
+
+**AC1 — Topbar switcher and one active target**
+**Given** a durable paired TV,
+**When** the paired summary or the future Remote topbar is shown,
+**Then** the left side is a 48dp TV switcher button with an 8dp health dot, the TV name in `body` 16sp, a 12dp mint caret, and 8dp gaps; the right side is empty in Epic 1, with no Settings gear,
+**And** the button opens the TV switcher sheet and does not change the target,
+**And** the name truncates with an ellipsis when long; the full name is always in the switcher sheet and TV details,
+**And** the health dot is the active `ConnectionHealth`; when no connection session exists it uses the offline token and its accessibility label says "not connected," never "TV off" and never a command outcome,
+**And** the active target is a `TvId` held by one process-scoped `TargetSession` owner; no screen reads the Room record as its own target,
+**And** with one stored TV the target is auto-selected; with zero there is no target; there is no persisted last-used target and no `isActive` flag in Room,
+**And** the topbar never contains command state or a capability claim.
+
+**AC2 — The one-TV switcher sheet**
+**Given** the user taps the switcher button,
+**Then** the TV switcher opens as a bottom sheet with the standard grabber, 64% scrim, maximum 80% height, title "TVs," and a list with one row for the stored TV,
+**And** it is a list with one item, not a single-TV layout branch; Story 2 adds multi-TV policy and rows without rewriting it,
+**And** it is a sheet, not a tab, screen, or bottom navigation; one sheet at a time; no nested sheet,
+**And** it opens no socket and makes no connection attempt; the row's health dot reflects the active `ConnectionHealth` or the offline/not-connected state,
+**And** it dismisses on drag-down, scrim tap, or back; focus moves into the sheet and returns to the switcher button,
+**And** it has no "Add a TV" action in Epic 1; Story 2 adds it as the last row, and there is no dead button,
+**And** it is not a separate "Manage" surface; TV details is a row action.
+
+**AC3 — TV row content and actions**
+**Given** the switcher row,
+**Then** it shows the health dot, the full TV name, the model, and the durable capability label from Story 1.8; the label is a text plate, not a colored badge,
+**And** the current TV is marked "Current" with a text label and a check glyph; the mark is not color-only,
+**And** tapping the row selects that TV and closes the sheet; with one TV already current, it only closes and does not restart, reconnect, or reset health,
+**And** the row has a separate 48dp "TV details" action that opens the Story 1.6 trust sheet keyed by `TvId`; it does not change the target,
+**And** the row never shows "Open remote," "Forget," a full MAC, IP, token, pin, or a support guarantee; Forget stays in TV details,
+**And** health and capability are distinct: an offline TV can still show "Full control — confirms keys," and a connected TV can still show "Best-effort — can't confirm commands,"
+**And** the row reads the single `CapabilityLabelTracker` and the single `ConnectionHealth`; no second label or health computation,
+**And** the row is at least 48dp high and uses the existing raised/surface tokens with a 1dp hairline, not a shadow.
+
+**AC4 — Target selection and cold start**
+**Given** the stored TV list,
+**Then** `TargetSession` exposes `NoTarget` or `Selected(TvId)`; zero TVs yields `NoTarget`, one yields `Selected` automatically, and two or more cannot be created in Epic 1 because multi-TV is Epic 2,
+**And** cold start with one TV auto-selects it; cold start with zero shows the no-TV setup; process death never restores a stale target,
+**And** no last-used value is persisted or consulted, and the target is never an index, IP, or record position,
+**And** the Story 1.7 status surface and the future Remote read the active `TvId` from `TargetSession`; no screen holds a second target,
+**And** selecting the current TV is a no-op beyond closing the sheet; no command is queued or synthesized,
+**And** Story 2 adds multi-TV choice and "Add a TV" by extending this owner and list, not by replacing them.
+
+**AC5 — Empty, forgotten, and session-only states**
+**Given** the switcher is open or the TV is forgotten,
+**Then** if the stored TV is removed by Story 1.6 while the sheet is open, the sheet closes, `TargetSession` clears to `NoTarget`, and the no-TV setup appears; no stale row remains,
+**And** if the active TV record is unreadable, the app shows "TV unavailable" / "Pair again" and does not select another TV or invent a target,
+**And** a session-only target is not a stored TV: it has no switcher button, no sheet row, no TV details action, and no durable capability label; its topbar shows the name without a caret and its summary says "Session only — this TV won't be saved,"
+**And** with no stored TV the switcher is absent; the no-TV setup is the only surface,
+**And** the switcher never selects a TV from a stale last-used value or a removed record.
+
+**AC6 — Accessibility and layout**
+**Given** the topbar button and switcher sheet,
+**Then** the button and row are at least 48dp targets; the row's accessible name includes TV name, model, health or not-connected state, current state, and capability label; the health dot has its own label and is not color-only,
+**And** the "TV details" action has an accessible label that names the TV; the check glyph is not the only current-state signal,
+**And** the sheet moves focus in, traps it while open, and returns it to the switcher button on dismiss; TalkBack announces the current row as selected/current,
+**And** at 200% font scale, 1.3× string expansion, and RTL, the row wraps and the sheet scrolls; the full name and actions do not truncate; the topbar may truncate because the full name is in the sheet and details,
+**And** the caret mirrors in RTL while the health dot and TV name do not; the health dot pulses only during reconnect and not under reduced motion,
+**And** the sheet has no horizontal scrolling, tabs, FAB, or persistent bottom navigation, and adds no new animation or sound.
+
+**AC7 — Testability**
+**Given** the target state, topbar, and switcher,
+**Then** JVM tests cover `TargetSession` with zero and one TV, no last-used selection, `TvId` keying, current-TV no-op, forgotten/unreadable records, and session-only exclusion,
+**And** Compose/UI tests or manual pilot tests cover the topbar button, sheet open/dismiss, focus return, current marker, TV-details action, health/capability labels, and 200%/RTL layout,
+**And** no test requires a live TV, asserts a socket write as success, or prints token, pin, SPKI, or full MAC,
+**And** the tests reuse the single `CapabilityLabelTracker` and `ConnectionHealth`; no duplicate state owner or fake label table.
+
+**AC8 — Scope discipline**
+**Given** this story,
+**Then** it adds no multi-TV storage, multi-TV picker, cold-start choice, "Add a TV," last-used target, Settings/gear, remote keys, full Remote, trust sheet/Forget changes, text, pointer, voice, cast, mirror, wake, session pinning, or target-change sheet-close rules,
+**And** it adds no cloud, telemetry, second target owner, second health owner, second capability label, persisted active target, or dead button,
+**And** the only visible changes are the topbar switcher, the one-TV sheet, and the TV-details entry point,
+**And** Story 1.10's Remote reuses the topbar, switcher, and `TargetSession`; Story 2 extends the same list and owner for multiple TVs.
+
+### Story 1.10: Open the Remote and connect to the selected TV
+
+As the pilot user,
+I want the paired TV card to open a real Remote that connects to that TV and tells me when it is reconnecting or offline,
+So that I can see which TV I am controlling and recover the connection before I send any key.
+
+**FRs:** FR8 (Remote shell and recovery), FR13 (keys-disabled state only; no keys rendered), FR37, FR40; UX-DR6, UX-DR7 (reuse), UX-DR8, UX-DR10 (Idle/Offline subset), UX-DR14 (launcher visibility only), UX-DR19, UX-DR20 (Idle/Offline subset), UX-DR22 (Open remote), UX-DR26, UX-DR27, UX-DR36, UX-DR39, UX-DR43; NFR4, NFR6-NFR7, NFR9, NFR12, NFR17; AD-3, AD-6, AD-7, AD-8.
+
+**Out of scope:** D-pad/directions/OK, function keys, utility row/volume/play-pause/power, any key frame, `CommandTracker`/`submit()`, repeat/gesture generation, Submitted/Unconfirmed/Observed ring states, one-time chips, text, pointer, voice, cast, mirror, wake, Settings, launcher enablement, multi-TV/Add TV, full TV details/four-label list, trust/Forget/matrix changes, session chip, foreground service/notification/wake lock, cloud/telemetry.
+
+**Acceptance Criteria:**
+
+**AC1 — Entry, target, and retired status surface**
+**Given** a durable or session-only target selected by `TargetSession`,
+**When** the paired summary's TV card is shown,
+**Then** its primary action is "Open remote," replacing "Check connection," and it opens the Remote without opening a socket itself,
+**And** the Story 1.7 status surface, its route, and its "Check connection" action are removed; no dead action or duplicate connection surface remains,
+**And** the Remote opens only for the active `TvId`; with no target or an unreadable stored record, it does not open and the Story 1.9 no-TV/"TV unavailable — Pair again" path remains,
+**And** app launch and the paired summary do not auto-connect; opening the Remote starts the first connection, and "Paired" is never shown as "Connected,"
+**And** the paired summary remains the Epic 1 pre-Remote home and keeps its TV details action, durable capability label, health dot, and debug-only Matrix harness; it owns no socket and is not a second Remote,
+**And** a session-only target opens the same Remote using in-memory trust, with no switcher, caret, TV details action, or durable capability label,
+**And** leaving the Remote closes its session and returns to the paired summary; no socket outlives it.
+
+**AC2 — Remote shell layout**
+**Given** the Remote opens,
+**Then** it uses the topbar pattern: 56dp, `surface-base`, 1dp bottom hairline, 20dp side padding; the left is Story 1.9's TV switcher for a durable target, or the TV name and health dot without a caret for a session-only target; the right is empty in Epic 1, with no Settings gear,
+**And** the column is 360–480dp wide, centered, with a 20dp gutter and no scrolling; the banner, when present, sits under the topbar and pushes content,
+**And** the 236dp ring is centered in the lower third, 2dp stroke, no fill, not tappable or focusable; on a typical 800dp-tall phone its center sits between 62% and 70% of the viewport; on a short viewport it may shrink to 208dp only after the quiet space collapses; its interior is empty in this story, with no D-pad, placeholder keys, loading indicator, or "coming soon" copy,
+**And** the 24dp state line sits directly under the ring, and the existing six-slot launcher is visible above the bottom safe area,
+**And** the launcher stays disabled: all six slots keep their positions, dashed hairlines, lock marks, and `ink-disabled`; no slot starts a feature or opens a sheet,
+**And** there is no utility row, function-key row, D-pad, one-time chip, session chip, dashboard, tab, FAB, bottom navigation, or horizontal scrolling,
+**And** the ring and launcher never move into the banner's space; the state word and banner copy wrap rather than truncate, and every target stays at least 48dp.
+
+**AC3 — One UI-scoped session and one health owner**
+**Given** the Remote is open for a target,
+**When** its session starts,
+**Then** exactly one remote session is bound to that `TvId`; it opens exactly one channel with the stored record, token, and pin (or the in-memory trust for a session-only target), and never reads Room as its own target,
+**And** it reuses Story 1.7's connection, pin validation, backoff, `ConnectionHealth`, re-pair, and no-queue behavior; no second connection, health owner, or socket is created,
+**And** the session is scoped to the Remote's foreground lifetime; leaving the Remote, backgrounding the app, clearing the target, forgetting the TV, or changing the target closes the socket and stops backoff, with no background reconnect,
+**And** recomposition or a configuration change does not create a second channel; at most one session exists for the target, and no socket crosses a target,
+**And** returning to the Remote, or relaunching after process death, starts a fresh session, revalidates the pin, and shows no cached health or command state; process death leaves no socket,
+**And** a session-only target uses its in-memory token/pin and creates no Room record or Keystore alias,
+**And** the switcher and TV details sheets over the Remote do not close the session; only leaving the Remote or losing the target does,
+**And** no foreground service, notification, wake lock, or command queue is created; `keysEnabled` is read from `ConnectionHealth` but no key is rendered yet.
+
+**AC4 — Idle/offline ring and state line**
+**Given** the Remote session's health,
+**Then** the ring has only two states in this story: Idle and Offline; the pale mint, mint, and amber command states, the 900ms breath, and the "It worked" action remain Story 1.11,
+**And** the ring is Idle when the session is connected and no command is in flight, and also while the first attempt or an active reconnect is in progress; it is Offline only when no usable socket remains: terminal offline, identity changed, pairing required, or LAN denied,
+**And** the idle ring uses `ring-idle` with no glow; the offline ring uses `ring-offline` with the salmon glow, held until Retry/re-pair starts or the session becomes usable again; under reduced motion both change instantly with no pulse or animated glow,
+**And** the ring never shows a spinner, checkmark, sweep, percentage, segmented arc, or command text; it is not a connection indicator,
+**And** the state line is a 24dp-minimum centered row with a 6dp lamp and a 13sp/500 label: "Idle" or "Offline"; it matches the ring and never reports health,
+**And** the state line is a polite live region, announces the state once per change, and never says "Sent," "Waiting for TV…," "TV confirmed," "You confirmed," "It worked," or "Connected,"
+**And** the state word does not truncate and wraps to two lines at 200%; the ring and state line add no haptic, sound, or new animation,
+**And** the topbar health dot and the ring never swap roles: the dot reports socket health, the ring reports command state, and neither is the other's label.
+
+**AC5 — Banner and recovery**
+**Given** the Remote's health or identity changes,
+**Then** the Story 1.7 banner is reused with its oxblood style, one recovery action, optional "Not now," 16dp padding, 14dp radius, maximum two lines plus the action row, no spinner, and content pushed rather than overlaid,
+**And** "Reconnecting…" / "Retry" / "Not now" appears while backoff is active; "TV didn't answer — retry?" / "Keys are off until the TV reconnects." / "Retry" / "Not now" appears when terminal offline; "This TV's identity changed. Re-pair to continue." / "Re-pair" appears on pin mismatch; "Pairing is required for this TV." / "Re-pair" appears on token rejection,
+**And** the initial attempt is represented by the amber health dot and its "connecting" label, with no banner and no spinner; once it fails, the reconnecting banner appears,
+**And** the banner is assertive only for terminal offline and identity changed; reconnecting, pairing required, and LAN denied are polite,
+**And** "Retry" immediately attempts once, resets the backoff, tries the stored IP first, and may run one discovery scan only to reconnect the same `TvId`; it never selects a different TV,
+**And** "Not now" stops auto-retry and moves to terminal Offline; "Re-pair" opens Story 1.7's re-pair flow, which reuses Story 1.5's pairing with the stored identity and no old token, and after success the Remote opens a fresh session on the same target,
+**And** a failed re-pair keeps the old record and trust material, leaves the banner and keys disabled, and creates no duplicate; the old channel is closed before re-pair starts and no two sessions overlap,
+**And** if the local-network gate is denied, no socket opens and the banner uses "UniRem needs local network access to reach your TV." / "Open settings" / "Not now"; it never says "TV didn't answer" or "TV off,"
+**And** one banner is shown at a time; no toast, snackbar, dialog, or nested banner replaces it.
+
+**AC6 — Switcher, details, and no command surface**
+**Given** the Remote is open,
+**Then** the durable topbar switcher opens Story 1.9's sheet; it opens no socket and does not restart the session; the current row closes the sheet without reconnecting or resetting health; the row's "TV details" opens Story 1.6's trust sheet and does not change the target,
+**And** TV details reads the stored record and pin without opening a socket; closing it returns focus to the switcher row, and the Remote session continues,
+**And** if the active TV is forgotten from TV details, the Remote closes the session without sending a command and returns to the no-TV setup; no stale Remote or sheet remains,
+**And** if the active record becomes unreadable while the Remote is open, the session closes and the Story 1.9 "TV unavailable" / "Pair again" state replaces the Remote; no other target is selected,
+**And** the Remote renders no keys, D-pad, utility/function row, command state, one-time chip, session chip, Settings gear, launcher enablement, or key sheet,
+**And** the only visible changes are the Remote shell, the "Open remote" card action, and the removal of the status surface/Check connection.
+
+**AC7 — Accessibility and layout**
+**Given** the Remote shell,
+**Then** the topbar switcher, banner actions, and launcher slots are at least 48dp; the ring is not focusable; focus order is topbar/switcher → banner action(s) → state line → launcher, with future utility/function/D-pad slots inserted in the UX-DR39 order,
+**And** TalkBack names the switcher with the TV name, health, and "double tap to switch TV"; the session-only name is static and names the health; the state line announces "Idle" or "Offline"; the banner is a live region that is assertive only for terminal offline and identity changed,
+**And** health, ring state, and disabled launcher are never color-only; each has a label, lamp, lock, or text,
+**And** at 200% font scale, 1.3× string expansion, and RTL, the topbar name truncates with an ellipsis, the state line and banner wrap, the sheet scrolls, and no horizontal scrolling or critical label truncation occurs; the caret mirrors, while the health dot, ring, and TV name do not,
+**And** reduced motion removes the health-dot reconnect pulse, keeps ring color/glow static, and adds no new animation or sound,
+**And** the shell has no tabs, FAB, persistent bottom navigation, or dashboard; the launcher is the only bottom bar and stays disabled.
+
+**AC8 — Testability**
+**Given** the Remote shell, session binding, and card entry,
+**Then** JVM tests cover entry only with a target, no-target/unreadable guards, one session per `TvId`, close on leave/background/target clear/Forget, no auto-connect from the card, no duplicate on recomposition, session-only exclusion from Room/Keystore, health-to-ring/state-line mapping (Idle vs Offline), and the no-queue/no-`CommandTracker` invariant,
+**And** Compose/UI tests or manual pilot tests cover the Open remote action, removed status surface, topbar/switcher, empty ring, Idle/Offline state line, banner states, disabled launcher, focus order, 200%/RTL, and session close on back/background,
+**And** the Story 1.7 instrumentation tests for pinned connect/disconnect/timeout/re-pair are reused with the Remote shell; no live TV is required in CI,
+**And** no test writes a key, asserts a socket write as success, or prints token, pin, SPKI, full MAC, IP, or WSS URL.
+
+**AC9 — Scope discipline**
+**Given** this story,
+**Then** it adds no D-pad/directions/OK, function keys, utility row/volume/play-pause/power, key frames, `CommandTracker`/`submit()`, repeat/gesture generation, Submitted/Unconfirmed/Observed states, one-time chips, text, pointer, voice, cast, mirror, wake, Settings, launcher enablement, multi-TV/Add TV, full TV details/four-label list, trust/Forget/matrix changes, or session chip,
+**And** it adds no cloud, telemetry, remote config, background socket, foreground service, notification, wake lock, command queue, second connection/health/target owner, WSS-to-WS fallback, or trust-all manager,
+**And** it reuses Story 1.5's pairing/re-pair, Story 1.6's TV details/Forget, Story 1.7's connection/backoff/banner, Story 1.8's capability owner via the card/switcher, and Story 1.9's topbar/switcher/`TargetSession`; no second implementation,
+**And** the status surface is removed, not left as a dead route; "Check connection" no longer exists,
+**And** Story 1.11 adds the D-pad and command truth inside the ring; Story 1.12 adds the utility/function keys and power; Story 1.13 adds repeat and late evidence; Story 1.14 completes accessibility/RTL.
