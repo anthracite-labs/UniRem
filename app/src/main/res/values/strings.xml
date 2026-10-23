@@ -109,6 +109,14 @@
     <string name="trust_close">Close</string>
     <string name="trust_close_cd">Close the error</string>
 
+    <string name="switcher_tvs">TVs</string>
+    <string name="switcher_current">Current</string>
+    <string name="switcher_open_cd">Show the TV list</string>
+    <string name="switcher_not_connected">not connected</string>
+    <string name="switcher_unavailable">TV unavailable</string>
+    <string name="switcher_pair_again">Pair again</string>
+    <string name="switcher_pair_again_cd">Pair a TV again</string>
+
     <string name="connection_check">Check connection</string>
     <string name="connection_check_cd">Check the TV connection</string>
     <string name="connection_paired">Paired</string>

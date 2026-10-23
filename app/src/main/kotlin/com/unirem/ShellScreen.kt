@@ -28,6 +28,7 @@ import com.unirem.gate.GateQuietAction
 import com.unirem.gate.LanGateSnapshot
 import com.unirem.gate.PermissionCard
 import com.unirem.setup.DisabledLauncher
+import com.unirem.setup.TvSwitcherButton
 import com.unirem.ui.graphitemint.GraphiteMint
 import com.unirem.ui.graphitemint.GraphiteMintSpacing
 import com.unirem.ui.graphitemint.GraphiteMintType
@@ -40,6 +41,12 @@ import com.unirem.ui.graphitemint.GraphiteMintType
  * reusable `TvId`-keyed "TV details" trust sheet (Story 1.6); the launcher
  * stays disabled. Session-only targets get no sheet and show the session-only
  * label.
+ *
+ * Story 1.9: the paired branch opens with the `TargetSession` switcher button
+ * (dot plus name plus caret); session-only targets show the dot plus name
+ * with no caret and open no sheet. The shell never reads Room as its own
+ * target: the caller resolves the `TargetSession` target to [switcherName]
+ * and the summary inputs.
  */
 @Composable
 fun ShellScreen(
@@ -57,6 +64,10 @@ fun ShellScreen(
     detailsFocusRequester: FocusRequester? = null,
     sessionOnlyActive: Boolean = false,
     onCheckConnection: () -> Unit = {},
+    switcherName: String? = null,
+    onOpenSwitcher: () -> Unit = {},
+    switcherFocusRequester: FocusRequester? = null,
+    sessionOnlyName: String? = null,
 ) {
     Box(
         modifier = Modifier.fillMaxSize(),
@@ -93,6 +104,16 @@ fun ShellScreen(
             )
             Spacer(modifier = Modifier.height(GraphiteMintSpacing.X3))
             if (hasPairedTv) {
+                if (switcherName != null) {
+                    TvSwitcherButton(
+                        name = switcherName,
+                        stateText = stringResource(R.string.switcher_not_connected),
+                        actionDescription = stringResource(R.string.switcher_open_cd),
+                        onOpen = onOpenSwitcher,
+                        focusRequester = switcherFocusRequester,
+                    )
+                    Spacer(modifier = Modifier.height(GraphiteMintSpacing.X2))
+                }
                 BasicText(
                     text = stringResource(R.string.setup_shell_summary, tvSummary ?: ""),
                     style = GraphiteMintType.Body.copy(color = GraphiteMint.InkPrimary),
@@ -119,6 +140,18 @@ fun ShellScreen(
                 Spacer(modifier = Modifier.height(GraphiteMintSpacing.X3))
             } else {
                 if (sessionOnlyActive) {
+                    // Session-only chrome: dot plus name with no caret and no
+                    // sheet; the summary line below carries the durable note.
+                    if (sessionOnlyName != null) {
+                        TvSwitcherButton(
+                            name = sessionOnlyName,
+                            stateText = stringResource(R.string.switcher_not_connected),
+                            actionDescription = stringResource(R.string.paired_session_only),
+                            onOpen = {},
+                            showCaret = false,
+                        )
+                        Spacer(modifier = Modifier.height(GraphiteMintSpacing.X1))
+                    }
                     BasicText(
                         text = stringResource(R.string.paired_session_only),
                         style = GraphiteMintType.Body.copy(color = GraphiteMint.InkPrimary),

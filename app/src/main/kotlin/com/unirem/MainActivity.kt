@@ -32,6 +32,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import com.unirem.core.api.IdentityRules
 import com.unirem.core.api.LanAccess
+import com.unirem.core.api.CapabilityKey
+import com.unirem.core.api.CapabilityLabel
 import com.unirem.core.api.NetworkType
 import com.unirem.core.api.RedactedLog
 import com.unirem.core.api.TvId
@@ -44,7 +46,9 @@ import com.unirem.connection.BannerKind
 import com.unirem.connection.ConnectionController
 import com.unirem.connection.ConnectionScreen
 import com.unirem.connection.RePairCommit
+import com.unirem.connection.TargetSession
 import com.unirem.connection.TargetSessionHolder
+import com.unirem.connection.TargetSwitchRules
 import com.unirem.gate.LanAccessGate
 import com.unirem.gate.GateQuietAction
 import com.unirem.setup.AddTvScreen
@@ -54,6 +58,7 @@ import com.unirem.setup.SetupLogic
 import com.unirem.setup.SetupTopBar
 import com.unirem.setup.TrustLogic
 import com.unirem.setup.TrustSheet
+import com.unirem.setup.TvSwitcherSheet
 import com.unirem.tv.KeystorePairingStore
 import com.unirem.tv.RoomTvStore
 import com.unirem.tv.MatrixOverlayRow
@@ -133,7 +138,15 @@ class MainActivity : ComponentActivity() {
                 // Story 1.7: process-scoped target plus the socket-scoped
                 // status-surface destination. No screen owns the target and no
                 // last-used value is persisted; a relaunch shows "Paired".
+                // Story 1.9: the shell auto-selects below when exactly one
+                // stored record exists, so the target survives leaving the
+                // status surface within this process.
                 val targetSession = remember { TargetSessionHolder() }
+                val target by targetSession.session.collectAsState()
+                // Story 1.9: one-TV switcher sheet state plus the focus owner
+                // the sheet returns to on every dismiss path.
+                var switcherOpen by rememberSaveable { mutableStateOf(false) }
+                val switcherFocus = remember { FocusRequester() }
                 var connectionTvIdHex by remember { mutableStateOf<String?>(null) }
                 var connEntry by remember { mutableStateOf<PairingEntry?>(null) }
                 var connLoaded by remember { mutableStateOf(false) }
@@ -208,6 +221,35 @@ class MainActivity : ComponentActivity() {
 
                 LaunchedEffect(Unit) {
                     records = withContext(Dispatchers.IO) { tvStore.all() }
+                }
+
+                // Story 1.9: cold-start auto-select. Exactly one stored
+                // record selects its TvId; zero records clear to NoTarget, so
+                // process death never restores a stale target and nothing is
+                // ever guessed. Applied only through select/clear; there is no
+                // persisted last-used value.
+                LaunchedEffect(records) {
+                    when (val next = TargetSwitchRules.projectTarget(records.map { it.tvId }, targetSession.session.value)) {
+                        is TargetSession.Selected -> targetSession.select(TvId(next.tvIdHex))
+                        TargetSession.NoTarget -> targetSession.clear()
+                        null -> Unit
+                    }
+                }
+
+                // Focus returns to the switcher button after an actual sheet
+                // dismiss, never on first composition.
+                var switcherWasOpen by remember { mutableStateOf(false) }
+                LaunchedEffect(switcherOpen) {
+                    if (switcherOpen) {
+                        switcherWasOpen = true
+                    } else if (switcherWasOpen) {
+                        switcherWasOpen = false
+                        try {
+                            switcherFocus.requestFocus()
+                        } catch (e: Exception) {
+                            RedactedLog.debug(TAG, "Switcher focus not restored")
+                        }
+                    }
                 }
 
                 // Story 1.8: capability inputs. The asset loads once per
@@ -309,6 +351,14 @@ class MainActivity : ComponentActivity() {
                                     trustConfirming = false
                                     trustForgetFailed = false
                                     trustTvIdHex = null
+                                    // Forget-while-open: the switcher sheet
+                                    // closes and the target clears to NoTarget
+                                    // with no stale row left behind.
+                                    switcherOpen = false
+                                    when (val after = TargetSwitchRules.reduce(targetSession.session.value, TargetSwitchRules.TargetEvent.ForgetSucceeded)) {
+                                        is TargetSession.Selected -> targetSession.select(TvId(after.tvIdHex))
+                                        TargetSession.NoTarget -> targetSession.clear()
+                                    }
                                     route = SetupRoute.Shell
                                     RedactedLog.debug(TAG, "Trust forgotten")
                                 }
@@ -360,6 +410,17 @@ class MainActivity : ComponentActivity() {
                     RedactedLog.debug(TAG, "Pair cancelled")
                 }
 
+                fun openAddTv() {
+                    dismissed = emptySet()
+                    manualKeys = emptySet()
+                    targets = emptyList()
+                    diagnostic = null
+                    manualError = null
+                    scanDone = false
+                    route = SetupRoute.AddTv
+                    startScan()
+                }
+
                 fun runPair(candidate: TvCandidate) {
                     if (pairingWaiting) return
                     pairJob?.cancel()
@@ -385,6 +446,9 @@ class MainActivity : ComponentActivity() {
                                         pairedModel = candidate.modelLabel
                                         pairedSessionOnly = true
                                         pairedTvIdHex = null
+                                        // Session-only targets carry no TvId
+                                        // and never become a target.
+                                        targetSession.clear()
                                         route = SetupRoute.Paired
                                     } else {
                                         val tvId = candidate.tvId!!
@@ -402,6 +466,9 @@ class MainActivity : ComponentActivity() {
                                             pairedModel = candidate.modelLabel
                                             pairedSessionOnly = false
                                             pairedTvIdHex = record.tvId
+                                            // The just-paired TV selects; this
+                                            // is the known TvId, never a guess.
+                                            targetSession.select(tvId)
                                             route = SetupRoute.Paired
                                         }
                                     }
@@ -419,6 +486,8 @@ class MainActivity : ComponentActivity() {
                 // connection from the stored record, token, and pin; leaving
                 // closes the socket and stops backoff. No auto-connect on
                 // launch or while closed; the paired summary stays "Paired".
+                // Story 1.9: leaving keeps the process-scoped target (reduce
+                // with SurfaceLeft is identity); only Forget clears it.
                 fun closeConnection() {
                     connRunJob?.cancel()
                     connRunJob = null
@@ -432,7 +501,6 @@ class MainActivity : ComponentActivity() {
                     rePairCandidate = null
                     rePairTargetHex = null
                     connectionTvIdHex = null
-                    targetSession.clear()
                     route = SetupRoute.Shell
                 }
 
@@ -599,10 +667,36 @@ class MainActivity : ComponentActivity() {
 
                 when (val current = route) {
                     SetupRoute.Shell -> {
-                        val summary = records.firstOrNull()?.let {
+                        // Story 1.9: the shell never reads Room as its own
+                        // target. The TargetSession target resolves to at most
+                        // one stored record; anything else is NoTarget.
+                        val targetHex = remember(target, records) {
+                            TargetSwitchRules.resolveTargetHex(target, records.map { it.tvId })
+                        }
+                        val targetRecord = remember(records, targetHex) {
+                            targetHex?.let { hex -> records.firstOrNull { it.tvId == hex } }
+                        }
+                        val summary = targetRecord?.let {
                             if (it.model.isBlank()) it.name else "${it.name} · ${it.model}"
                         }?.ifBlank { getString(R.string.setup_not_reported) }
                         val sessionOnlyActive = sessionTrust.isNotEmpty() && records.isEmpty()
+                        // Labels subscribe only while a target is selected;
+                        // NoTarget holds no empty-key flow.
+                        val switcherLabels by if (targetHex != null) {
+                            labelTracker.labelsFor(targetHex).collectAsState()
+                        } else {
+                            remember { mutableStateOf(emptyMap<CapabilityKey, CapabilityLabel>()) }
+                        }
+                        val switcherPlate =
+                            if (targetHex == null || targetRecord == null) {
+                                null
+                            } else {
+                                CapabilityCopy.cardLine(
+                                    switcherLabels[CapabilityLabelTracker.CARD_KEY],
+                                    getString(R.string.capability_full_control),
+                                    getString(R.string.capability_best_effort),
+                                )
+                            }
                         ShellScreen(
                             versionName = BuildConfig.VERSION_NAME,
                             snapshot = snapshot,
@@ -622,21 +716,12 @@ class MainActivity : ComponentActivity() {
                                 explainerVisible = false
                                 openAppSettings()
                             },
-                            hasPairedTv = records.isNotEmpty(),
+                            hasPairedTv = targetRecord != null,
                             tvSummary = summary,
-                            onAddTv = {
-                                dismissed = emptySet()
-                                manualKeys = emptySet()
-                                targets = emptyList()
-                                diagnostic = null
-                                manualError = null
-                                scanDone = false
-                                route = SetupRoute.AddTv
-                                startScan()
-                            },
+                            onAddTv = { openAddTv() },
                             onShowDetails = {
-                                val hex = records.firstOrNull()?.tvId
-                                if (hex != null) {
+                                val hex = targetHex
+                                if (hex != null && targetRecord != null) {
                                     trustConfirming = false
                                     trustForgetFailed = false
                                     trustTvIdHex = hex
@@ -645,8 +730,8 @@ class MainActivity : ComponentActivity() {
                             detailsFocusRequester = detailsFocus,
                             sessionOnlyActive = sessionOnlyActive,
                             onCheckConnection = {
-                                val hex = records.firstOrNull()?.tvId
-                                if (hex != null) {
+                                val hex = targetHex
+                                if (hex != null && targetRecord != null) {
                                     rePairDenied = false
                                     rePairTimedOut = false
                                     rePairFailed = null
@@ -654,12 +739,23 @@ class MainActivity : ComponentActivity() {
                                     route = SetupRoute.Connection(hex)
                                 }
                             },
+                            switcherName = targetRecord?.name?.ifBlank {
+                                getString(R.string.setup_not_reported)
+                            },
+                            onOpenSwitcher = { switcherOpen = true },
+                            switcherFocusRequester = switcherFocus,
+                            sessionOnlyName = if (sessionOnlyActive) {
+                                pairedName.ifBlank { null }
+                            } else {
+                                null
+                            },
                         )
                         // Durable-only trust sheet keyed by TvId. Session-only
                         // targets get no sheet. Gated on the finished
                         // Keystore load so "Fingerprint unavailable" never
-                        // flashes mid-read.
-                        if (trustRecord != null && TrustLogic.sheetVisible(sessionOnlyActive, trustTvIdHex, true, trustEntryLoaded)) {
+                        // flashes mid-read. Never on top of the switcher sheet:
+                        // one sheet at a time.
+                        if (trustRecord != null && !switcherOpen && TrustLogic.sheetVisible(sessionOnlyActive, trustTvIdHex, true, trustEntryLoaded)) {
                             TrustSheet(
                                 record = trustRecord,
                                 maskedMac = IdentityRules.maskMac(trustRecord.wifiMac),
@@ -691,6 +787,41 @@ class MainActivity : ComponentActivity() {
                                         trustTvIdHex = null
                                     }
                                 },
+                            )
+                        }
+                        // Story 1.9: the one-TV switcher sheet. A one-item
+                        // list over the TargetSession target; opens nothing
+                        // and changes nothing on open. Selecting the current
+                        // row only closes; details hands the TvId to the trust
+                        // sheet with the target unchanged; forget-while-open
+                        // closes and clears via runForget.
+                        if (TargetSwitchRules.sheetVisible(target, switcherOpen, sessionOnlyActive, trustTvIdHex != null)) {
+                            val sheetHex = (target as TargetSession.Selected).tvIdHex
+                            TvSwitcherSheet(
+                                tvName = targetRecord?.name?.ifBlank {
+                                    getString(R.string.setup_not_reported)
+                                } ?: getString(R.string.switcher_unavailable),
+                                tvModel = listOfNotNull(targetRecord?.model, targetRecord?.modelName)
+                                    .firstOrNull { it.isNotBlank() } ?: "",
+                                capabilityPlate = switcherPlate,
+                                stateText = getString(R.string.switcher_not_connected),
+                                unreadable = TargetSwitchRules.rowUnreadable(target, targetRecord != null),
+                                onSelectCurrent = {
+                                    // Current tap is a no-op: close only, no
+                                    // reconnect, reset, or health change.
+                                    switcherOpen = false
+                                },
+                                onShowDetails = {
+                                    switcherOpen = false
+                                    trustConfirming = false
+                                    trustForgetFailed = false
+                                    trustTvIdHex = sheetHex
+                                },
+                                onPairAgain = {
+                                    switcherOpen = false
+                                    openAddTv()
+                                },
+                                onDismiss = { switcherOpen = false },
                             )
                         }
                     }
