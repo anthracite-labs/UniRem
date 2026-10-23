@@ -1,6 +1,6 @@
 ---
-status: draft
-stepsCompleted: [2]
+status: final
+stepsCompleted: [3]
 inputDocuments:
   - _bmad-output/unirem/spec-samsung-remote/spec-samsung-remote.md
   - _bmad-output/unirem/spec-samsung-remote/protocol-reference.md
@@ -154,7 +154,7 @@ NFR14: Matrix data — a versioned in-repo artifact keyed by byte-exact model an
 
 NFR15: Distribution — signed AAB to Play internal testing, then production; signing key held by the project owner; the Tizen receiver stays a dev-mode sideload for V1; no store listing until CAP-7 latency and battery figures are recorded.
 
-NFR16: Permissions and foreground services — `INTERNET`, `ACCESS_NETWORK_STATE`, `ACCESS_WIFI_STATE`, `CHANGE_WIFI_MULTICAST_STATE`, `POST_NOTIFICATIONS`, `RECORD_AUDIO`, the local-network permission for API 37, and MediaProjection consent from an Activity; no storage permissions; Photo Picker only; FGS types cast `connectedDevice`, mirror `mediaProjection`, voice `microphone`; only user-started sessions.
+NFR16: Permissions and foreground services — `INTERNET`, `ACCESS_NETWORK_STATE`, `ACCESS_WIFI_STATE`, `CHANGE_WIFI_MULTICAST_STATE`, `POST_NOTIFICATIONS`, `RECORD_AUDIO`, `VIBRATE` (normal install-time, haptics only), the local-network permission for API 37, and MediaProjection consent from an Activity; no storage permissions; Photo Picker only; FGS types cast `connectedDevice`, mirror `mediaProjection`, voice `microphone`; only user-started sessions.
 
 NFR17: Localization and RTL — externalized strings, no concatenation, 1.3× expansion, sentence case; text and rows mirror in RTL; D-pad arrows, volume/mute, and media transport icons do not mirror.
 
@@ -221,7 +221,7 @@ NFR18: Documentation and contract — `docs/receiver-contract.md` must exist bef
 - CI: every change runs the Gradle build, lint, and `:core` JVM tests; instrumentation and physical matrix runs are manual on owned TVs; results are committed as matrix rows.
 - Distribution: signed AAB to Play internal testing, then production; signing key held by the project owner; the Tizen receiver stays a dev-mode sideload for V1.
 - Debug environment: `debug` includes the matrix harness and overlay, verbose redacted logs, and strict-mode checks; `release` reads the asset matrix only and has no harness; there is no backend and no staging environment.
-- Permissions and FGS: `INTERNET`, `ACCESS_NETWORK_STATE`, `ACCESS_WIFI_STATE`, `CHANGE_WIFI_MULTICAST_STATE`, `POST_NOTIFICATIONS`, `RECORD_AUDIO` for the Voice sheet, the local-network permission for API 37, and MediaProjection consent from an Activity; no storage permissions; the Photo Picker is the only picker; FGS types cast `connectedDevice`, mirror `mediaProjection`, voice `microphone`; only for user-started sessions.
+- Permissions and FGS: `INTERNET`, `ACCESS_NETWORK_STATE`, `ACCESS_WIFI_STATE`, `CHANGE_WIFI_MULTICAST_STATE`, `POST_NOTIFICATIONS`, `RECORD_AUDIO` for the Voice sheet, `VIBRATE` (normal install-time, haptics only), the local-network permission for API 37, and MediaProjection consent from an Activity; no storage permissions; the Photo Picker is the only picker; FGS types cast `connectedDevice`, mirror `mediaProjection`, voice `microphone`; only for user-started sessions.
 - Multicast: `LanAccessGate` owns the single process-wide `MulticastLock`; jUPnP's own lock is disabled.
 - Secrets: Keystore only; no secret in BuildConfig, resources, or logs; pairing material is backup-excluded.
 - Matrix harness: debug-only Room overlay; overlay rows never satisfy a release gate; release reads the asset only.
@@ -375,6 +375,27 @@ FR41: Epic 1 - Debug matrix harness; release-asset-only half in Epic 7.
 - NFR15 is Epic 7. NFR16 is feature-owned: LAN gate in Epic 1, permission explainers in Epic 2, microphone in Epic 4, cast FGS/notifications in Epic 5, MediaProjection in Epic 6.
 - UX-DR1-UX-DR25 are the Epic 1 design system; UX-DR26-UX-DR38 are owned by the surface epic that introduces them; UX-DR39-UX-DR43 are per-epic and audited in Epic 7.
 
+### Epic 1 coverage exceptions
+
+These are explicit, reviewed exceptions, not silent gaps.
+
+- **UX-DR38 Back long-press:** not enabled in Epic 1. The protocol reference has no canonical per-model long-Back support signal and the matrix has no `Keys/LongBack` key, so Back is tap-only; Story 1.13 records the condition for enabling it later.
+- **UX-DR14 disabled launcher explanation:** the launcher remains visible and disabled. Story 1.14 makes the slots focusable and announces "Not available in this build"; the explanation sheet is deferred to launcher enablement.
+- **FR12 per-key wording:** Epic 1 uses a model-level one-time chip because the matrix exposes `Keys/Device`, not per-key support. The per-key `[key]` wording is deferred until per-key evidence exists; Epic 1 never claims the TV does not report a specific key.
+- **NFR9 compact D-pad:** on the optional 208dp short-viewport ring, directions are 56×52dp rather than the standard 60×56dp; every target remains at least 48dp. The standard 236dp ring keeps 60×56dp.
+- **360×640dp at 200% with a banner:** a stress finding, not a silent clip. 360×800dp is the release gate; Story 1.14 records a named design follow-up if the short case cannot fit.
+
+### Epic 1 traceability notes
+
+These notes close traceability questions without changing the approved story scope.
+
+- **UX-DR23 button ownership:** the button component is part of the Epic 1 shell/design system. Stories 1.4–1.6 exercise the primary, secondary, and destructive variants; Story 1.14 audits their targets and contrast. No separate story is added for the component.
+- **FR38 persistence scope:** Epic 1 creates the Room and Keystore stores it actually needs: the TV record and pairing material in Story 1.5, deletion in Story 1.6, the debug-only overlay in Story 1.8, and chip dismissals in Story 1.15. Declared-surface observations and probe results arrive with the text/pointer probes in Epic 3; no DataStore scalar or runtime debug flag exists in Epic 1, so DataStore is not instantiated. The first story that needs those stores creates them.
+
+### Story-breakdown scope
+
+Detailed stories are complete for Epic 1. Epics 2–7 remain at epic level with FR assignments and implementation notes; their stories are intentionally generated in later passes. The 41-FR map above assigns every FR exactly once at epic level.
+
 ## Epic List
 
 **Total:** 7 epics. **FR coverage:** 41 of 41 FRs assigned exactly once.
@@ -389,12 +410,12 @@ The user can find a Samsung TV on the local network, complete the TV's Allow pro
 - **Spike A gate first.** No scaffold or foundation work starts before the Spike A report. Exit evidence: at least three model years including one recent Tizen; Allow/Deny; token persistence and re-prompt; pin change; reconnect; target selection; repeat at 500/80ms; per-key machine evidence versus user-only; power-off observation; the no-remote Allow path; and two same-model TVs producing distinct `TvId`. If the gate cannot run, stop and re-plan.
 - **Scope is the single-TV slice.** No multi-TV picker, no full TV details or Settings, and no wake. Full FR39 remains Epic 2.
 - **Trust closure.** The one-TV switcher opens a minimal trust sheet: name, model, masked MAC, IP, SPKI fingerprint, Forget, and the copy "Pairing is stored encrypted on this phone; nothing is sent to the internet." The pairing card's Details link resolves here. This is the FR4/FR5 acceptance subset, not full FR39.
-- **Power-off honesty.** Before the first power-off, show a one-time chip: "Power off turns the TV off. This build can't wake it — use the TV's power button or remote." No confirmation sheet. After power-off, the offline copy repeats the limitation.
+- **Power-off honesty.** Before the first power-off, show a one-time chip: "Power off only. This build can't wake the TV; use the TV's power button." No confirmation sheet. After power-off, the offline copy repeats the limitation.
 - **Seams.** Ship all six launcher slots disabled behind one `SlotAvailability` state owner; later epics register availability policy only. Build the TV switcher as a list with one TV, not a single-TV special case. Keep `activeTarget` separate from any last-used value. Key the session owner by `TvId` from the start. No dead "Add a TV" action.
-- **Inert data.** Persist the wake MAC, its provenance, `NetworkType`, and the reached interface even though wake ships in Epic 2. Store declared surfaces, probe results, chip dismissals, and the TV record; never store a resolved capability label.
+- **Inert data.** Persist the wake MAC, its provenance, `NetworkType`, and the reached interface even though wake ships in Epic 2. Store the TV record, chip dismissals, and debug overlay in Epic 1; declared-surface observations and probe results are stored by the first story that captures them (Epic 3); never store a resolved capability label.
 - **Matrix denominator.** Pin the pilot TV pair and seed their matrix rows in Epic 1. Author the literal `*unknown*` row. Define overlay-to-release-asset promotion and `matrixVersion` review. Each epic exit commits its relevant rows and runs one release-asset-only dry run.
 - **Identity and build.** Confirm the application ID/package base `com.unirem` and the Play reservation in the first scaffold work, before any signed build. Release smoke starts in Epic 1.
-- **Permissions.** Epic 1's manifest has no `RECORD_AUDIO`, `POST_NOTIFICATIONS`, or MediaProjection; no voice, cast, mirror, media-server, or capture code.
+- **Permissions.** Epic 1's manifest has no `RECORD_AUDIO`, `POST_NOTIFICATIONS`, or MediaProjection; `VIBRATE` is the only install-time addition, for local haptics only; no voice, cast, mirror, media-server, or capture code.
 - **Proof owned here.** Per-key evidence, the no-remote Allow path, two-TV identity, and power-off observation are Epic 1 exit evidence, not Epic 7 surprises.
 - **Cross-cutting.** NFR4-NFR6, NFR9, NFR12, NFR17, and UX-DR39 apply from the first work item.
 
@@ -1389,3 +1410,579 @@ So that I can see which TV I am controlling and recover the connection before I 
 **And** it reuses Story 1.5's pairing/re-pair, Story 1.6's TV details/Forget, Story 1.7's connection/backoff/banner, Story 1.8's capability owner via the card/switcher, and Story 1.9's topbar/switcher/`TargetSession`; no second implementation,
 **And** the status surface is removed, not left as a dead route; "Check connection" no longer exists,
 **And** Story 1.11 adds the D-pad and command truth inside the ring; Story 1.12 adds the utility/function keys and power; Story 1.13 adds repeat and late evidence; Story 1.14 completes accessibility/RTL.
+
+### Story 1.11: Put the D-pad in the ring and tell the truth about every tap
+
+As the pilot user,
+I want a D-pad inside the ring that sends one key per tap and tells me whether the TV confirmed it,
+So that I can navigate the TV without mistaking a socket write for an on-TV effect.
+
+**FRs:** FR9 (D-pad and OK subset), FR11, FR13 (key enablement subset); UX-DR3 (standard 236dp subset), UX-DR4, UX-DR5, UX-DR10, UX-DR11, UX-DR20, UX-DR27, UX-DR28, UX-DR29, UX-DR39; NFR3, NFR8, NFR9, NFR12, NFR17; AD-2, AD-3.
+
+**Out of scope:** FR10 and every press-and-hold behavior — the 500ms/80ms repeat, `Press`/`Release` frames, key-up on release, held-gesture handling, no strobing on repeat, and adversarial late-evidence coverage (Story 1.13); the utility row, function keys, power off, and Back (Story 1.12); one-time chips, unsupported-key limits, and the durable limitation record (Story 1.15); haptics, reduced-motion work, the compact 208dp D-pad, and the full accessibility/RTL/200% audit (Story 1.14); text, pointer, voice, cast, mirror, wake, Settings, multi-TV/Add TV, target switching, session chip, launcher enablement, full TV details/four-label list, trust/Forget/matrix changes, cloud, and telemetry.
+
+**Acceptance Criteria:**
+
+**AC1 — D-pad geometry and key states**
+**Given** the Remote is open for the active target and Story 1.10's 236dp ring is rendered,
+**When** the D-pad is composed inside it,
+**Then** it is a 3×3 cluster with columns 64dp/76dp/64dp, rows 60dp/70dp/60dp, and 4dp gaps, centered inside the ring without crossing its 2dp stroke,
+**And** the cells hold Up top-center, Left middle-left, OK center, Right middle-right, and Down bottom-center; the four corners are empty,
+**And** the four direction keys are 60×56dp, `rounded.md` (14dp), `surface-key`, 1dp `hairline`, with a custom 15sp chevron; no unicode arrow, Material icon, triangle, or text-as-icon,
+**And** OK is a 70dp circle with `accent` fill and an `ink-on-accent` 15sp/500 "OK" label centered in the middle cell; it is the only mint fill in the cluster,
+**And** pressed directions use `surface-key-pressed`, pressed OK uses `accent-pressed`, and both scale to 0.98 for 80ms; no shadow, gradient, bevel, or haptic,
+**And** disabled keys keep their position, glyph, and label, use `ink-disabled` with the key surface at 45% opacity, and expose disabled semantics; the 4dp gap is structural and every effective touch target is at least 48dp,
+**And** all five keys are always present; there are no diagonals, no swipe surface, no pointer behavior, no placeholder, and no key hidden for model support,
+**And** the ring remains 236dp, 2dp, unfilled, not tappable, and not focusable; on a short viewport collapse the quiet space first and keep 236dp in this story. Story 1.14 owns the compact 208dp ring and the compact D-pad variant, which must preserve 56dp-wide directions, a 70dp OK, and every target at least 48dp,
+**And** the ring, state line, and launcher keep Story 1.10's placement and the launcher stays disabled; no utility row, function-key row, empty reserved row, or placeholder is added.
+
+**AC2 — One tap, one tracked command, one submit**
+**Given** the socket is usable and the D-pad is enabled,
+**When** the user taps a direction or OK once,
+**Then** `:app` calls `TvControl.submit(RemoteCommand)` exactly once for that tap, mapping each direction and OK to its matching `RemoteCommand`; OK sends the Enter command,
+**And** `:tv`'s existing key path writes exactly one `ms.remote.control` Click frame for that submitted command; `:app` imports no `KEY_*` constant, no protocol frame, and no socket,
+**And** `CommandTracker` in `:tv` is the one tracker for the active target, created with the channel session and cancelled with it; it is the only writer of `CommandOutcome`, exposes one `StateFlow<CommandOutcome>`, and opens exactly one gesture generation for the tap,
+**And** `:app` observes that one flow and keeps no second outcome, timer, or `confirmed` boolean,
+**And** a recomposition, TalkBack activation, or configuration change does not replay the tap; one user action yields one `submit()` and one frame,
+**And** a long touch produces the same one command as a tap: there is no `Press`/`Release`, no long-press handler, no repeat timer, and no repeat engine; Story 1.13 adds the only repeat engine,
+**And** when the D-pad is disabled, no click action is invoked, `submit()` is not called, and no frame is written, queued, or replayed.
+
+**AC3 — Submitted, Unconfirmed, and the injected timeout**
+**Given** the D-pad is enabled and the socket is open,
+**When** an accepted tap's frame is written,
+**Then** the tracker moves to `Submitted`; the ring uses `ring-submitted` with one 900ms breath, once for that press; the state line shows "Sent" with its 6dp lamp in the same color,
+**And** the breath starts once at Submitted and is never restarted by Unconfirmed or Observed; there is no loop, checkmark, percentage, sweep, or segmented arc,
+**And** Submitted is pale mint, not a success color; no write acknowledgement or socket event changes that,
+**And** the tracker applies the injected command timeout, default 3000ms with the per-capability override from Spike A; no composable or `:app` timer owns the 3s threshold,
+**When** the timeout elapses with no evidence for the current generation and the socket is still open,
+**Then** the tracker moves to `Unconfirmed`; the ring uses `ring-unconfirmed` with the amber glow; the state line shows "Waiting for TV…" and expands to 48dp with a 48dp "It worked" action,
+**And** Unconfirmed persists until evidence, user confirmation, the next tap, or the session ends; it is amber, never red, and never says "Failed," "No response," or "Error",
+**When** a new tap is accepted while any state is showing,
+**Then** it starts at `Submitted` again, resets the breath and timeout, and supersedes the previous ring state; the ring belongs to the last press only.
+
+**AC4 — Evidence, provenance, and "It worked"**
+**Given** an accepted command for the current generation,
+**When** a `TvEvent` or a command-scoped `StateProbe` tagged to that generation arrives,
+**Then** the tracker moves to `Observed` with machine provenance; the ring uses `ring-observed` with the 24dp mint glow; the state line says "TV confirmed"; the state holds for 4s and then returns to `Idle`,
+**And** machine evidence may arrive before or after the 3s timeout and may resolve Unconfirmed to Observed; the pale-mint breath does not restart,
+**When** the user taps "It worked" while the state is Unconfirmed,
+**Then** the tracker moves to `Observed` with `UserConfirmed` provenance; the ring uses `ring-observed`; the state line says "You confirmed"; the state holds for 4s and then returns to `Idle`,
+**And** "It worked" emits `UserConfirmed` evidence only: it never calls `submit()`, writes a frame, or re-sends the key,
+**And** Observed is never entered from a socket write, a write callback, `ms.channel.ready`, `clientConnect`, a generic health transition, silence, or the absence of an error,
+**And** adapters emit `Evidence` (`TvEvent`, `StateProbe`, `UserConfirmed`) and never a `CommandOutcome` or a `confirmed` verdict; the tracker is the only resolver, following Story 1.2's per-key evidence rule,
+**And** "It worked" appears only in Unconfirmed, is 48dp, and is absent in Submitted, Observed, and Idle; after a generation settles or is superseded it cannot confirm another tap,
+**And** the first evidence that resolves a generation wins; later duplicate or late evidence for that generation does not change provenance, restart the 4s hold, or reopen the ring,
+**And** machine and user provenance are never interchanged: "TV confirmed" requires `TvEvent` or `StateProbe`; "You confirmed" requires `UserConfirmed`; no checkmark, confetti, "Success!", or green check appears before evidence.
+
+**AC5 — Socket gating, offline, and no queue**
+**Given** the Remote session and its existing `ConnectionHealth`,
+**When** the socket is usable and `keysEnabled` is true for `Connected`,
+**Then** the D-pad is enabled, including while the TV is silent and the command is Unconfirmed or Observed; the user can tap again,
+**And** the D-pad re-enables when `keysEnabled` becomes true again; no stale disabled state survives a reconnect,
+**When** the socket is closed,
+**Then** the D-pad is disabled for the initial connecting period, `Reconnecting`, terminal `Offline`, identity changed, pairing required, and LAN denied; the existing Story 1.10 recovery banner remains the only recovery surface and is unchanged,
+**And** when the socket closes with a command in flight, the tracker clears the open generation to `Idle`, never `Unconfirmed` or `Observed`; no frame is written, queued, replayed, or retried; the ring and state line show Story 1.10's Offline pair and the keys disable,
+**And** a reconnect or new session starts at `Idle`; no previous outcome, pending timeout, or last key is restored, and the next tap requires a new `submit()`,
+**And** `Offline` is not a `CommandOutcome`: the tracker is `Idle`, `ConnectionHealth` owns the offline, identity, pairing, and LAN states, and `:app` combines the two read-only,
+**And** the topbar dot remains socket health and the ring remains command state; only Story 1.10's Offline pair bridges them, and neither owner is swapped,
+**And** no command is queued, replayed, or retried on reconnect, no synthetic frame is emitted, and no socket write or write acknowledgement is presented as an on-TV effect.
+
+**AC6 — Minimum generation guard and session lifetime**
+**Given** a tap opens generation N and the tracker is bound to the current socket instance,
+**When** evidence or a user confirmation for generation N arrives while N is current,
+**Then** it may resolve N exactly once,
+**When** a newer tap opens generation N+1,
+**Then** any `TvEvent`, `StateProbe`, or pending "It worked" action for N is ignored and cannot change the N+1 ring; a stale "It worked" cannot confirm a newer tap,
+**And** the generation is a monotonic `Long` per socket session; a new socket session starts a fresh generation and accepts no evidence from the old socket,
+**And** the tracker is created with the channel session and cancelled with it; on socket close, session end, or a target change when Epic 2 adds one, the open generation resolves to `Idle` and cannot later become `Unconfirmed` or `Observed`,
+**And** once a generation settles to `Idle` after Observed or is superseded, later evidence for it cannot reopen the ring or restart the 4s hold,
+**And** this is the minimum single-tap guard only; full repeat, held-gesture, repeat-frame, and adversarial late-evidence coverage belongs to Story 1.13, and this story adds no repeat engine, press/release synthesis, or held-gesture timer.
+
+**AC7 — State line, accessibility, RTL, and focus**
+**Given** the D-pad, the ring, and the state line,
+**When** they are rendered and used with TalkBack or in RTL,
+**Then** every key is at least 48dp (directions 60×56, OK 70) and exposes a button role with the TalkBack names "Direction up, button," "Direction down, button," "Direction left, button," "Direction right, button," and "OK, button"; a disabled key reports disabled and has no send action,
+**And** the ring has no content description, click action, or focus stop; the state line keeps Story 1.10's 24dp-minimum centered 13sp/500 row and 6dp lamp and is the polite live region; it announces one state per change: "Idle," "Sent," "Waiting for TV…," "TV confirmed," "You confirmed," or "Offline"; in the unconfirmed state it announces "Waiting for TV. The TV hasn't confirmed this key.",
+**And** "It worked" is a 48dp button with the accessible name "It worked"; it is reachable in the state line only when Unconfirmed and is absent otherwise,
+**And** color is never the sole carrier: every ring state has its text label, every key has a glyph or the word OK, and disabled adds disabled semantics to the 45% opacity,
+**And** the banner remains assertive only for offline and identity changed, and polite for reconnecting and pairing required, per Story 1.10,
+**And** focus order is topbar → banner actions → one-time chip (absent) → utility row (absent) → function keys (absent) → D-pad in row-major order Up, Left, OK, Right, Down → state line and its "It worked" action → launcher; absent rows are skipped and the D-pad does not trap focus,
+**And** at 200% font scale and 1.3× expansion, "OK," "Sent," and "Waiting for TV…" remain legible; the state line wraps to two lines, "It worked" stays 48dp, and no critical label truncates or forces horizontal scrolling,
+**And** in RTL the cluster is physically laid out, not start/end: Up stays top, Down bottom, Left left, Right right; the chevrons do not mirror; the Left key still sends Left; the OK label is unchanged; only surrounding text and sheet rows mirror; focus order and accessibility names do not swap direction,
+**And** this story adds no haptics, no sound, and no new reduced-motion setting; the 900ms breath and 0.98 pressed scale are the only new motion, and Story 1.14 owns their reduced-motion audit and the full accessibility/RTL/200% pass.
+
+**AC8 — Testability**
+**Given** the tracker, the D-pad, and the state UI,
+**When** the JVM, Compose, and manual suites run,
+**Then** `:tv` JVM tests with a fake clock and fake channel cover: one `submit()` per tap; one Click frame per tap; zero for a disabled tap; OK maps to Enter; Submitted only after a write; 3s timeout to Unconfirmed; Unconfirmed remains while open; Observed from `TvEvent` and command-scoped `StateProbe`; Observed with `UserConfirmed` provenance from "It worked" with no extra submit; "It worked" absent outside Unconfirmed; 4s Observed hold to Idle; one breath per press; a new tap supersedes; stale evidence for an older generation is ignored; socket close resolves Idle; a new session starts Idle; no queue or retry,
+**And** Compose/UI tests or manual pilot tests cover the 3×3 geometry and tokens, pressed and disabled states, ring state colors and text, state-line expansion, "It worked," the offline banner with disabled keys, TalkBack names/roles/live region, row-major focus order, RTL arrow non-mirroring, 200% font scale, and no horizontal scrolling,
+**And** no test waits on real 3s or 4s timers, requires a live TV, asserts a socket write as success, or prints token, pin, SPKI, full MAC, or WSS URL,
+**And** the tests reuse Story 1.10's session and health fakes and Story 1.7's connection fixtures; there is no second tracker, timer, or outcome implementation.
+
+**AC9 — Scope discipline**
+**Given** this story,
+**When** it is implemented,
+**Then** the only product changes are the D-pad inside the ring, the `CommandTracker` tap path, the five ring states, the state line's command labels and "It worked," and the D-pad's accessibility/RTL behavior,
+**And** it adds no press-and-hold repeat, key-up/release, held-gesture timer, Back long-press, repeat-frame handling, or adversarial late-evidence coverage; those are Story 1.13, which adds the only repeat engine and the full generation-monotonicity coverage,
+**And** it adds no utility row, function keys, power, Back/Home/Apps/Search, volume, mute, or play/pause; Story 1.12 reuses this tracker, ring, and state line for those keys,
+**And** it adds no one-time unsupported-key chip, model-limit chip, power-off warning, or durable limitation record; Story 1.15 owns those,
+**And** it adds no haptics, reduced-motion implementation, compact 208dp D-pad, or full accessibility audit; Story 1.14 owns those,
+**And** it adds no text, pointer, voice, cast, mirror, wake, Settings, multi-TV/Add TV, target switching, session chip, launcher enablement, full TV details, trust/Forget, or matrix change,
+**And** it adds no cloud, telemetry, remote config, new permission, foreground service, notification, wake lock, background socket, second session/health/target owner, second `CommandTracker`, second banner, toast, snackbar, dialog, command queue, retry, WSS-to-WS fallback, or trust-all manager,
+**And** it reuses Story 1.10's Remote shell, single UI-scoped session, `ConnectionHealth`, offline/reconnecting/identity/pairing banners, ring placement, state line, and disabled launcher; Story 1.7's connection, backoff, and re-pair; and Story 1.5's pairing; no second implementation exists,
+**And** holding a D-pad key in this story sends one tap and nothing more; the story does not partially implement Story 1.13, and no later story is required for the behavior this story claims.
+
+### Story 1.12: Add the utility and function keys and keep power off honest
+
+As the pilot user,
+I want volume, mute, play/pause, Home, Back, Apps, Search, and a separate power-off key on the Remote,
+So that I can use the everyday controls without the app pretending a socket write or a TV disconnect proves what happened.
+
+**FRs:** FR9, FR11, FR13, FR24 (power-off subset; the one-time warning is Story 1.15); UX-DR3, UX-DR4, UX-DR5, UX-DR12, UX-DR13, UX-DR20, UX-DR27, UX-DR29, UX-DR39; NFR3, NFR8, NFR9, NFR12, NFR17; AD-2, AD-3.
+
+**Out of scope:** D-pad direction/OK changes, D-pad repeat, key-up, volume repeat, Back long-press, late-evidence and generation work, wake/power-on/magic packet, the one-time power-off warning and model-limit chips (Story 1.15), haptics, Settings, launcher enablement, text, pointer, voice, cast, mirror, multi-TV/Add TV, session chip, any new sheet or dialog, command queue/retry/background socket, capability-label or matrix changes, and the full 200%/RTL/1.3×/reduced-motion/haptics audit (Story 1.14).
+
+**Acceptance Criteria:**
+
+**AC1 — Utility row geometry**
+**Given** the Remote is open for the active TV and the socket is open,
+**When** the utility row is laid out at a 360–480dp screen width,
+**Then** it is a centered 48dp-high row with a 180×48dp volume rocker, a 48dp play/pause circle, and a 48dp power-off circle, with 14dp gaps and a 304dp total width,
+**And** the rocker is one 24dp-radius capsule with three 60×48dp segments in the order volume up, mute, volume down, separated by 1dp hairlines that do not add to the 180dp width,
+**And** each segment is its own hit target with the whole 60×48dp area tappable; the rocker has no swipe, drag, or repeat behavior,
+**And** the volume glyphs are the custom 20dp speaker-plus, speaker-mute, and speaker-minus line icons; play/pause and power use their custom 20dp line icons,
+**And** the row uses `surface-key` with 1dp hairlines and no mint fill; power uses `ink-primary` and a 1dp hairline and is never a filled red block or a ring color,
+**And** the row fits inside the 320dp content width at a 360dp screen without clipping, wrapping, or horizontal scrolling, and stays centered at wider widths.
+
+**AC2 — Function key row geometry**
+**Given** the Remote is open,
+**When** the function-key row is laid out below the utility row,
+**Then** it is a 52dp-high row with four equal-width columns, 8dp gaps, `rounded.md` 14dp corners, `surface-key`, and a 1dp hairline,
+**And** each key has an 18dp custom line icon above a 15sp/400 sentence-case label: Home, Back, Apps, Search; the icon-to-label gap is 4dp and the whole 52dp key is the target,
+**And** no key is a pill, uses uppercase, uses mint fill, or uses a Material icon, emoji, unicode arrow, or text-as-icon,
+**And** at 360dp the four columns share the 320dp content width; the labels are centered and are not truncated at 100% font scale, and under larger font scale the row may grow vertically rather than clip, with Story 1.14 verifying 200%,
+**And** the row never wraps into two rows, never scrolls horizontally, and never overlaps the ring.
+
+**AC3 — Remote order and unchanged D-pad and ring**
+**Given** the Remote shell from Story 1.10 and the command-state UI from Story 1.11,
+**When** the new rows are added,
+**Then** the vertical order below the topbar and any banner is quiet space, utility row, 24dp gap, function-key row, 24dp gap, 236dp ring with the D-pad, 24dp gap, state line, launcher; when the banner is present it still pushes content and never overlays or reorders a row,
+**And** the utility and function rows sit above the ring and outside it; they are never placed below the ring, between the ring and state line, or inside the D-pad,
+**And** the ring, D-pad geometry, D-pad key behavior, and command-state behavior are unchanged from Stories 1.10–1.11; this story only inserts the two rows,
+**And** all extra vertical space is absorbed above the utility row; the two rows consume the quiet region above the ring, and on a typical 800dp-tall phone with no banner the ring center stays within Story 1.10's 62–70% band without taking space from the fixed gap between the ring and state line,
+**And** on a short viewport the quiet space collapses first and the ring stays 236dp in this story; Story 1.14 owns the compact 208dp ring and D-pad variant, which must keep every target at least 48dp,
+**And** the Remote does not scroll; the utility and function rows do not wrap, shrink below their specified heights, or move under the launcher, status bar, or gesture inset,
+**And** the launcher stays visible and disabled; the rows keep their order and heights when the health dot changes, and the banner's existing push behavior may move the group but never reorders or overlays a row.
+
+**AC4 — One submit per tap**
+**Given** the socket is open and `keysEnabled` is true,
+**When** the user taps volume up, mute, volume down, play/pause, Home, Back, Apps, Search, or power off once,
+**Then** the app calls the existing `submit(RemoteCommand)` exactly once for that gesture with that key's single command (`VolumeUp`, `Mute`, `VolumeDown`, `PlayPause`, `Home`, `Back`, `Apps`, `Search`, `PowerOff`) and writes no frame itself,
+**And** a press, release, recomposition, or long hold does not add a submit; holding volume, play/pause, a function key, or power sends only the one command from the tap,
+**And** there is no volume repeat, no D-pad repeat, no Back long-press, no key-up, and no synthesized press/release in this story; Story 1.13 adds repeat only where it owns it,
+**And** play/pause is one ordinary command, not an app-side play/pause toggle: the app does not inspect or track playback state, and the internal adapter maps `PlayPause` to the single play/pause key frame validated in Spike A without synthesizing a `KEY_PLAY`/`KEY_PAUSE` sequence,
+**And** the internal adapter maps each typed command to its protocol key; `:app` imports no `KEY_*` or frame type,
+**And** every one of these keys remains visible and usable when `keysEnabled` is true, regardless of the capability label or matrix result; unsupported-key chips and limitation records are Story 1.15 and are not added here,
+**And** Search sends the TV Search key and opens no phone text field; Home, Back, and Apps send their TV keys and open no sheet,
+**And** tapping one rocker segment sends only that segment's command; the other segments do not fire.
+
+**AC5 — Shared command truth**
+**Given** Story 1.11's single `CommandTracker` and its ring and state-line UI,
+**When** any new key is submitted,
+**Then** the same tracker records one gesture and the same UI starts at Submitted: pale-mint ring and "Sent", with the single 900ms breath reused, regardless of the previous state,
+**And** no evidence within the injected 3s timeout yields Unconfirmed: amber ring, "Waiting for TV…", and the existing 48dp "It worked" action; the timeout is configuration, not a new timer,
+**And** machine evidence (`TvEvent` or `StateProbe`) yields Observed with "TV confirmed"; only an explicit `UserConfirmed` yields "You confirmed"; neither copy appears without its provenance,
+**And** evidence for an older gesture never changes the current ring, the ring belongs to the last press across D-pad, utility, and function keys, and a new press resets the previous state,
+**And** a socket close or target change resolves an open gesture to Idle under Story 1.11's rules; it is never rendered as Unconfirmed or Observed by the close,
+**And** the new keys add no second tracker, second outcome flow, per-key status badge, success color, checkmark, confetti, "Success!", or state text outside the existing ring and state line,
+**And** the state line keeps Story 1.11's 24dp minimum, 13sp/500 label, 6dp lamp, and 48dp "It worked" expansion; this story changes no state copy, timeout, or glow timing,
+**And** a socket write alone never produces Observed, a green ring, or "TV confirmed"; the state line remains the polite live region.
+
+**AC6 — Power off honesty**
+**Given** the TV is on or its power state is Unknown and the socket is open,
+**When** the utility row is composed,
+**Then** power is a 48dp circle at the far right, visually separated from OK by the function-key row and ring gap, with a 1dp hairline and an `ink-primary` glyph; it never uses a ring color, filled red block, or mint fill, and it opens no confirmation sheet, dialog, snackbar, or long-press action,
+**When** the user taps it once,
+**Then** exactly one `submit(PowerOff)` is sent as a distinct command and control, not a combined on/off toggle and not a wake request; no second power frame, magic packet, wake operation, or retry follows,
+**And** if no off-state evidence arrives, the command may remain Submitted then amber Unconfirmed after the 3s timeout, and the app does not call it failed or retry it,
+**And** if a `TvEvent` or `StateProbe` indicates the TV is asleep or off for the current gesture, the existing tracker may show Observed with "TV confirmed"; a user tap on "It worked" may show "You confirmed"; neither is claimed from the write,
+**And** if the socket closes, the open gesture resolves to Idle and the ring may show Offline through the existing health path; the app never turns that close, a failed probe, or a `clientDisconnect` into Observed, "TV confirmed", "TV off", or "Asleep",
+**And** no new power or asleep state, surface, or guard is added; `ConnectionHealth` remains the only health and power-state owner, and if `keysEnabled` is false the power key is disabled and sends nothing,
+**And** no confirmation sheet, dialog, snackbar, or one-time chip is added for power off; the one-time power-off warning and the durable no-wake limitation are Story 1.15, not a confirmation and not part of this story's claim.
+
+**AC7 — Offline gating and no queue**
+**Given** the socket is closed, terminal offline, reconnecting, identity changed, pairing required, or LAN denied, so `keysEnabled` is false,
+**When** the user taps or holds any new key, or the socket closes during a tap,
+**Then** all nine new keys remain visible but disabled: `ink-disabled`, 45% surface opacity, disabled semantics, no pressed command state, and no ring change on tap,
+**And** a tap, long hold, or repeated tap calls `submit()` zero times and writes no frame; there is no queue, replay, retry, synthetic key-up, or deferred send when the socket reopens,
+**And** the existing health/offline banner is reused unchanged; this story adds no second banner, toast, snackbar, inline error, spinner, or command state in the topbar,
+**And** keys stay enabled while the socket is open but the TV is silent; the state line may show Unconfirmed, and the user can keep pressing,
+**And** reconnect re-enables keys only when `ConnectionHealth` reports a usable connected socket; a `Reconnecting` state keeps them disabled,
+**And** if the socket closes between the tap and dispatch, the tap is dropped, any open gesture resolves to Idle, and no command is sent into the closed socket,
+**And** power off cannot be tapped into a closed socket and never becomes a wake attempt.
+
+**AC8 — Accessibility names, roles, and focus**
+**Given** TalkBack and directional focus navigation are active,
+**When** the Remote is traversed by accessibility or directional focus,
+**Then** each rocker segment is a separate focusable button, not one merged control, named "Volume up", "Mute", and "Volume down"; play/pause is "Play or pause"; the function keys are "Home", "Back", "Apps", and "Search"; power is "Power off" and is never named "Power" or announced as a toggle,
+**And** each control has `Role.Button`; a visible label or the icon's own name supplies the accessible name, and icons are decorative when a visible label exists,
+**And** disabled keys are announced as disabled through `enabled=false`, not color or opacity alone, and the utility row does not merge away its three segment names,
+**And** no key uses toggle or checked semantics for mute, play/pause, or power; mute is a sent key, not a persistent switch, and the state line is the only command-outcome live region,
+**And** every utility segment and circle is at least 48×48dp, every function key is at least 52dp high, and the focus indicator is the existing 2dp mint `focus-ring`,
+**And** focus order is topbar → banner actions → one-time chip (Story 1.15; absent here) → utility row → function keys → D-pad → state line → launcher, with the visual start-to-end order inside each row and the ring not focusable,
+**And** no key's content description includes "Sent", "TV confirmed", or any other command state,
+**And** labels use externalized strings, 15sp/400, and sentence case, and function-key labels are not truncated at 100% font scale; the layout uses Start/End and flexible widths so Story 1.14 can verify RTL, 1.3× expansion, 200% font scale, reduced motion, and haptics,
+**And** this story adds no haptic, sound, new animation, accessibility-only mode, or color-only cue.
+
+**AC9 — Testability**
+**Given** the new key surfaces and the reused tracker,
+**When** the test suites and pilot checks run,
+**Then** JVM tests with a fake `TvControl` and Story 1.11's `CommandTracker` test fixture assert each of the nine taps submits exactly one exact command; a long hold submits once; disabled, reconnecting, offline, identity-changed, pairing-required, and LAN-denied states submit zero; and reconnect submits nothing automatically,
+**And** tests assert no repeat, no Back long-press, no volume repeat, no key-up, no second submit on recomposition, no local play/pause state, and no wake/power-on path,
+**And** a fake adapter asserts `PlayPause`, `PowerOff`, and the volume and function commands map to exactly one protocol command each internally, with `:app` tests importing no `KEY_*` or frame type,
+**And** a fake evidence source asserts Submitted → Unconfirmed and Submitted → Observed provenance; a socket close resolves Idle/Offline and never Observed; power off with no evidence may stay amber; and a disconnect never produces "TV confirmed",
+**And** Compose/UI or manual pilot tests assert the exact utility geometry (180×48 rocker, three 60×48 segments, 48dp circles, 14dp gaps, 304dp total), function-row geometry (four equal columns, 52dp high, 8dp gaps, 18dp icons, 15sp labels), vertical order above the ring, no horizontal scrolling, disabled rendering, accessible names and roles, and focus order,
+**And** no CI test requires a live TV or asserts a socket write as success; no test prints token, pin, SPKI, full MAC, IP, or URL; and the tests reuse Story 1.11's tracker fixtures and add no second test double for command truth.
+
+**AC10 — Scope discipline and handoffs**
+**Given** this story,
+**When** its diff and visible surfaces are reviewed against the Epic 1 scope and adjacent stories,
+**Then** it adds only the utility row, the function-key row, and their command wiring; it changes no D-pad direction or OK geometry or behavior and no ring or state-line behavior,
+**And** it adds no D-pad repeat, key-up, volume repeat, Back long-press, or late-evidence handling; Story 1.13 owns those and extends the same Back and D-pad surfaces without a second key implementation,
+**And** it adds no wake, power-on, magic packet, one-time chip, unsupported-key limitation record, haptics, Settings gear, launcher enablement, text, pointer, voice, cast, mirror, multi-TV, Add TV, session chip, sheet, dialog, command queue, background socket, foreground service, notification, or wake lock,
+**And** it adds no second `CommandTracker`, `ConnectionHealth`, target or session owner, command vocabulary, protocol parser, `PrivatePeer`, or multicast lock; `:app` still imports no protocol type,
+**And** it does not alter the matrix asset, capability labels, health precedence, or the existing banner copy; Story 1.14 owns the full 200%/RTL/1.3×/reduced-motion/focus/haptics audit,
+**And** the one-time power-off warning, model-level key-limit chip, and durable limitation record are Story 1.15; this story adds no chip and does not replace the warning with a confirmation sheet or a false "TV off" claim,
+**And** the visible changes are limited to the two rows and the behavior of their nine keys; the launcher remains disabled and no other surface changes.
+
+### Story 1.13: Repeat D-pad holds and keep late evidence from rewriting the last press
+
+As the pilot user,
+I want a held direction to repeat predictably, Back to stay tap-only until this build can prove long-press support, and late TV confirmations to never rewrite my latest press,
+So that holding a direction feels responsive, no gesture is hidden on a TV that cannot perform it, and the ring always tells the truth about the command I just sent.
+
+**FRs:** FR9–FR11, FR13; UX-DR4, UX-DR28, UX-DR29, UX-DR38 (repeat + deliberate Back exception), UX-DR39; NFR7–NFR9, NFR12, NFR17; AD-1, AD-2, AD-3.
+
+**Out of scope:** new key surfaces or layouts; utility-row, function-key, or power behavior; volume/play-pause repeat; OK repeat; long-press on Home, Apps, or Search; Back long-press emission (deliberately not enabled by AC6 because no canonical per-model support signal exists); a `Keys/LongBack` matrix key or any Story 1.8 vocabulary change; command-state visuals or ring composition; one-time chips and limitation records (Story 1.15); haptics and reduced-motion implementation (Story 1.14); Settings; launcher enablement; multi-TV UI or target-picker changes; text, pointer, voice, cast, mirror, wake; live TV or instrumentation; cloud, telemetry, or remote config.
+
+**Acceptance Criteria:**
+
+**AC1 — One repeat engine, with thresholds injected by `:app`**
+**Given** the Remote is open on an established socket and Story 1.11's D-pad is visible,
+**When** a direction is pressed and held,
+**Then** exactly one repeat engine exists, in `:tv`; it owns the cadence, the repeat frame writes, coalescing, and the key-up path,
+**And** `:app` supplies `RepeatConfig(initialDelayMs = 500, intervalMs = 80)` to `:tv` through the `TvControl` seam and emits only the press/release gesture edges; `:app` contains no repeat timer, loop, coroutine delay, or frame-level key writer,
+**And** `:tv` contains no hard-coded `500` or `80` in the repeat path; a test injects different values and observes the injected cadence,
+**And** the engine is started by the one `submit(RemoteCommand)` press edge for the gesture and stopped by the matching `release(RemoteCommand)` key-up edge; no `repeat()`, key-specific method, extra `press()` call, or second public operation is added outside AD-2's fixed `TvControl` operation set,
+**And** only the four D-pad directions are repeatable; OK, Back, Home, Apps, Search, volume up/down/mute, play/pause, and power off never enter the engine,
+**And** the D-pad uses one pointer press/release detector; no `combinedClickable`, `onLongClick`, or second repeat path synthesizes frames,
+**And** the engine is keyed to the socket instance and is cancelled with that socket; no repeat engine, timer, or tracker survives a socket close or target change.
+
+**AC2 — 500ms threshold, 80ms cadence, and no catch-up burst**
+**Given** a direction press at `t = 0` on a fake clock and an established socket,
+**When** the hold is advanced,
+**Then** the initial key frame is Story 1.11's documented `Click` for that direction at `t = 0`,
+**And** no repeat is sent at `t = 499ms`; a release at `t = 500ms` wins the tie and sends no repeat; a release at `t = 501ms` has sent exactly one repeat at `t = 500ms`,
+**And** while the hold continues, repeats occur at `t = 500ms, 580ms, 660ms, 740ms, ...`, one `Click` frame per tick with no drift and no skipped or duplicated tick,
+**And** the 500ms/80ms values are the product thresholds validated in Spike A's repeat run; they are UX configuration, not a protocol guarantee, and no copy or code claims the TV itself repeats,
+**And** a release at an exact repeat timestamp suppresses that tick; a release one millisecond later retains it,
+**And** if a frame write is delayed or the socket backpressures, at most one repeat is coalesced and sent when the writer resumes; missed ticks are not replayed as a burst, and the next repeat is scheduled one interval after the last sent repeat,
+**And** the repeat cadence never calls `submit()`, never starts a second tracker timeout, and never resets the 3s command timeout; the timeout remains measured from the initial submit.
+
+**AC3 — Release, cancellation, and close mid-hold**
+**Given** a direction hold that has entered repeat,
+**When** the pointer is released while the socket is open,
+**Then** the repeat engine stops before or at the release, and exactly one `Release` frame for the same `KEY_*` is written; no trailing `Click` is written after the release, and no second `submit()` occurs,
+**And** a release that arrives after the engine has already stopped is idempotent: it writes at most one `Release` and never re-arms the engine,
+**And** when the pointer is cancelled or capture is lost, the same release path runs for a repeat-entered hold, the gesture settles to `Idle` if it has no evidence, and no new command is synthesized,
+**And** when the socket closes mid-hold, the repeat stops immediately, no `Release` is queued or written into the closed socket, no command is retried on reconnect, and the open gesture resolves to `Idle` under AC8,
+**And** the release frame is one documented `Release` for the same `KEY_*`, `Option:"false"`, and `TypeOfRemote:"SendRemoteKey"`; the initial press and repeats remain the Spike A-validated `Click` pattern, and no `Press` frame is invented,
+**And** the one release-edge exception is the short tap in AC5: a hold that never enters repeat writes no `Release` and remains Story 1.11's single `Click`.
+
+**AC4 — One tracked gesture; repeats never submit or restart the ring**
+**Given** a direction press that repeats ten times on one socket,
+**When** the repeats are observed by Story 1.11's `CommandTracker` and ring,
+**Then** `submit()` is called exactly once, one gesture generation is created, and the tracker emits one `Submitted` outcome,
+**And** no repeat frame calls `submit()`, creates a generation, emits another `Submitted`, or replays the 900ms ring breath, the submitted color transition, or the 80ms pressed-key scale,
+**And** the ring belongs to the initial press for the whole hold: the 3s timeout runs once from the initial submit, and a hold longer than 3s produces one `Unconfirmed` transition while unresolved, not a new `Submitted` on each repeat,
+**And** once a generation resolves to `Observed`, further evidence for that same generation, including evidence caused by later repeat frames, is ignored; the observed glow starts once, holds its existing duration, and does not re-enter or re-trigger on each repeat,
+**And** if the generation is `Unconfirmed`, the first qualifying evidence for that same generation may resolve it to `Observed` once, per UX-DR28; later evidence for that generation is ignored,
+**And** the key remains visually pressed for the hold and does not strobe between pressed and resting states on each repeat,
+**And** only a new user press ends the old generation and starts a new `Submitted`/breath.
+
+**AC5 — Direction-only holds, short-tap parity, and second pointer**
+**Given** a direction press shorter than 500ms,
+**When** the pointer is released,
+**Then** exactly one initial `Click` and zero repeats are sent, no `Release` is sent, and the gesture is tracked once; this is the same frame behavior as Story 1.11's tap,
+**And** a press of OK, Back, Home, Apps, Search, volume up/down/mute, play/pause, or power off never arms the repeat engine and never produces hold frames; those keys keep their Story 1.11/1.12 tap behavior,
+**And** while one direction is held, a second pointer or a second direction does not start a second hold, submit a second command, or create a second generation; the second pointer is ignored until the first gesture ends,
+**And** no diagonal key, swipe, double-tap, multi-finger gesture, or D-pad-to-trackpad behavior is added,
+**And** when keys are disabled because the socket is closed, no direction hold or repeat can start.
+
+**AC6 — Back long-press is deliberately not enabled at 1.2s**
+**Given** the Back key from Story 1.12 and any TV in the Epic 1 matrix,
+**When** the user taps Back,
+**Then** exactly one normal `KEY_RETURN` click is sent, unchanged from Story 1.12,
+**And** when the user holds Back for 1.2s or longer, no 1.2s long-press timer is armed, no `Press`/`Release` pair is sent, no long-press command or extra frame is emitted, no haptic marks the threshold, and no command-state transition is created; the hold remains the same single Back tap,
+**And** the Back key stays visible, enabled, and usable while the socket is open; it is not disabled, hidden, or given a new label, chip, or settings toggle,
+**And** this is a deliberate UX-DR38 exception, not an implementation gap: the protocol reference documents `Press`/`Release` and a repeat loop, but no canonical source defines a per-model long-Back support signal, no `Keys/LongBack` key or matrix column exists, and `Keys/Device = Works` is evidence for ordinary keys, not for a long press,
+**And** no `Keys/LongBack` capability, matrix row, probe, or new `CapabilityScope` is invented; Story 1.8's closed vocabulary is unchanged,
+**And** fake-clock tests at 1199ms, 1200ms, and 1201ms, each followed by a release, assert the total frame count and tracker state match a short Back tap and contain no `Press` or `Release` frame,
+**And** a future story may add the gesture only after a recorded support signal exists; it must then send the validated hold frames and exactly one `submit()` for the gesture,
+**And** the Epic 1 coverage notes record this as the only deliberate UX-DR38 exception, with the condition for enabling it later.
+
+**AC7 — Monotonic generations bound to the socket instance**
+**Given** Story 1.11's single `CommandTracker` for the target TV,
+**When** the tracker is created for a socket session,
+**Then** each `submit()` assigns a monotonically increasing `Long` generation for that socket instance, and the generation is bound to that socket instance's identity,
+**And** repeat frames carry the existing generation and never increment it; a new generation is created only by a new user-expressed command,
+**And** every `Evidence` item is tagged with the `GestureToken(socketInstanceId, generation)` it belongs to before it reaches the tracker; `GestureToken` stays internal to `:tv` and does not widen the public API,
+**And** an evidence item that cannot be attributed to a specific generation is not guessed into the current one; the adapter drops it as uncorrelated rather than risk confirming a newer press,
+**And** the tracker ignores evidence with a different socket instance or an older generation, and never lets that evidence change the current outcome, provenance, ring, or state line,
+**And** evidence for the current generation is accepted only while that generation is active; evidence arriving after the generation has settled to `Observed`/`Idle`, or after a newer generation has started, is ignored,
+**And** a late `UserConfirmed` for an older generation is ignored exactly like a late `TvEvent` or `StateProbe`,
+**And** two presses of the same key are distinguished by generation, not by key name; a late confirmation for the older press can never resolve the newer press,
+**And** evidence for the current generation arriving after the 3s `Unconfirmed` state may resolve it to `Observed` once, as UX-DR28 requires; this is not treated as stale.
+
+**AC8 — Socket close and target change resolve the open gesture to `Idle`**
+**Given** an open gesture on a socket,
+**When** the socket closes, the Remote leaves the foreground, or the active target changes through Story 1.9's `TargetSession`,
+**Then** the repeat engine and the tracker timeout are cancelled together with the socket, and the open generation resolves to `Idle` exactly once, never `Unconfirmed` or `Observed`,
+**And** no `Release` is written into a closed socket, no command is queued, replayed, or retried on reconnect, and no evidence from the old socket is accepted,
+**And** a new socket gets a new socket-instance identity and a new tracker; the generation counter may start again for the new instance, but evidence carrying the old instance identity is ignored even when its numeric generation matches,
+**And** a target change closes the old socket before the new target's tracker exists; no two repeat engines or trackers overlap, and no in-flight command is re-targeted,
+**And** the Remote may still show Story 1.10's Offline ring for connection health, but that is a connection presentation, not a command outcome; the tracker's state is `Idle`,
+**And** returning to the Remote or relaunching after process death starts with no cached generation, no cached outcome, and no repeat state.
+
+**AC9 — Accessibility and no new visual or haptic noise**
+**Given** TalkBack, 200% font scale, RTL, and reduced-motion settings,
+**When** a direction is tapped, held, or repeated on the Remote,
+**Then** every direction keeps its existing 56dp target, accessible name, and button role; a TalkBack double-tap sends one key and does not require a long press,
+**And** the repeat gesture adds no new accessibility action, focusable element, content description, or custom announcement; the state line announces only outcome changes, not each repeat, and the ring remains non-focusable,
+**And** the key's pressed tone and scale are not replayed per repeat; the key stays pressed until release, and no new animation, sound, or haptic is added,
+**And** Back's scoped-out long-press adds no label, hint, chip, or spoken instruction,
+**And** the existing 200% font-wrap, RTL physical-glyph, and no-horizontal-scrolling behavior is unchanged because this story adds no text, layout, or icon,
+**And** Story 1.14 remains the owner of the haptic policy, reduced-motion behavior, and the cross-surface accessibility audit; this story adds nothing for it to retrofit.
+
+**AC10 — Deterministic tests and scope discipline**
+**Given** the repeat engine, tracker generation, and Back decision,
+**When** the test suite runs without a TV,
+**Then** `:tv` and `:app` JVM tests use a fake clock and virtual coroutine time and cover: 499/500/501ms, the 500/580/660ms cadence, release at an exact tick, no catch-up burst, one `submit()` for ten repeats, one `Submitted` and one breath, no ring restart when repeat evidence arrives, settled-generation evidence ignored, late evidence for an older generation, uncorrelated late evidence dropped, same-key presses, socket close mid-hold, socket restart, target change, Back at 1199/1200/1201ms, a short tap with no `Release`, a second pointer, and a non-direction key,
+**And** a protocol fixture asserts the exact `Click` and `Release` JSON for one direction, the unchanged `DataOfCmd`, and that `KEY_*` never appears in `:app`,
+**And** an injected `RepeatConfig` with values other than 500/80 changes the cadence, proving `:app` owns the thresholds and `:tv` owns the engine,
+**And** no test uses `Thread.sleep`, a live TV, instrumentation, or asserts a socket write as success,
+**And** `./gradlew build lint :core:test` and the relevant `:tv` JVM tests pass; CI still needs no TV,
+**And** this story adds no new key surface, layout, utility/function/power behavior, command-state visual, one-time chip, haptic, Settings, launcher enablement, multi-TV behavior, text/pointer/voice/cast/mirror/wake work, public API outside AD-2's allowlist, second repeat engine, second tracker, or invented matrix key,
+**And** it reuses Story 1.11's tracker, `submit()`, ring, and state line, Story 1.12's Back/utility/function keys, and Story 1.10's socket lifecycle; it does not duplicate any of them.
+
+### Story 1.14: Complete the accessibility floor across the Epic 1 surfaces
+
+As the pilot user,
+I want the complete Epic 1 experience to work with my font size, screen reader, reading direction, motion preference, and haptic setting,
+So that I can pair, press every key, read every state, and recover from every failure without relying on sight, color, animation, or a particular language direction.
+
+**FRs:** FR9–FR13, FR24 (power-off copy); UX-DR1–UX-DR15, UX-DR19–UX-DR20, UX-DR38–UX-DR41, UX-DR43; NFR1, NFR3, NFR9, NFR10, NFR12, NFR16, NFR17; AD-2, AD-3, AD-4.
+
+**Out of scope:** Settings and the independent app-level haptics and reduced-motion toggles (Epic 2); multi-TV, Add a TV, cold-start choice, and launcher enablement; text, pointer, voice (including the transcript and mic-state clauses of UX-DR39), cast, mirror, wake, session chip, foreground service, and notifications; new keys, commands, protocol frames, one-time chips (Story 1.15), copy beyond accessibility labels that restate existing visible copy, retry/queue/backoff, target rules, capability rows, or state owners; tablet or landscape layouts, a second accessibility mode, an accessibility service, custom gestures, sound, new animation, new dependencies, shipped translations, or a live-TV requirement.
+
+**Acceptance Criteria:**
+
+**AC1 — Audit coverage and evidence**
+**Given** the Epic 1 build with the surfaces from Stories 1.1–1.13,
+**When** the accessibility audit runs,
+**Then** it covers the no-TV setup, Add TV/discovery (scanning, results, empty, denied, manual IP), Pairing (prompt, deny, timeout), paired summary, TV details/Forget, TV switcher, Remote (topbar, banner, utility row, function keys, D-pad, state line, launcher), and the re-pair flow,
+**And** it runs at 100% and 200% font scale, with a 1.3× string-expansion pseudo-locale, in LTR and RTL, with reduced motion on, and with system haptics on and off,
+**And** each finding is fixed here or recorded at `_bmad-output/implementation-artifacts/a11y-audit-epic1.md` with the surface, configuration, exact control or copy, severity, and disposition; no unrecorded "known issue" remains,
+**And** the record names the device/API level, TalkBack version, font scale, locale, animator scale, haptic setting, and test fixture used; it contains no token, pin, SPKI, full MAC, IP, or WSS URL,
+**And** the debug-only matrix harness is spot-checked for labels and focus but is not counted as one of the product surfaces,
+**And** Story 1.15's one-time limit chip is not part of this audit; Story 1.15 adds it with the same accessibility contract and updates this record,
+**And** no finding is closed by adding a feature, key, screen, Settings surface, or accessibility-only mode.
+
+**AC2 — TalkBack names, roles, and live regions**
+**Given** TalkBack is enabled,
+**When** the user explores the Epic 1 surfaces,
+**Then** every remote key exposes a name matching its visible label (or its key name when icon-only), the button role, and a "Send" action label so TalkBack says "Double tap to send"; icon-only utility keys are named "Volume up," "Mute," "Play or pause," and "Power off," and direction keys read "Direction up, button," "Direction down, button," "Direction left, button," and "Direction right, button," with OK read as "OK, button,"
+**And** disabled keys remain in the accessibility tree with a disabled state and a reason ("TV not connected"); disabled launcher slots remain focusable and announce their label and "Not available in this build"; no explanation sheet is added in Epic 1 because Story 1.10 keeps every launcher slot non-opening, and the full explanation belongs to launcher enablement,
+**And** the topbar switcher reads "[TV name], connected/reconnecting/offline/not connected. Double tap to switch TV"; the health dot is merged into that name and is not a separate stop; a session-only name is static and names health,
+**And** the ring has no semantics and is not focusable; the state line is the spoken state and a polite live region; the banner is assertive only for terminal offline and identity changed and polite for reconnecting, pairing required, and LAN denied,
+**And** the state line announces a changed state once per change, not on recomposition, rotation, or focus change; the banner announces once per appearance; the ring, health dot, lamps, keys, launcher slots, and sheet grabber are not live regions,
+**And** sheet titles are headings and pane titles; the current switcher row exposes "Current" as text and a selected state; decorative icons are cleared so "Current" plus the check glyph is not read twice; the "It worked" action is a 48dp button with its own name,
+**And** the manual-IP field has a programmatic label, hint, and associated error; the fingerprint is exposed as grouped text, not an image; sheet actions name their object ("TV details for [TV]") and Forget is announced as a destructive button, not by color.
+
+**AC3 — Focus order and sheet focus**
+**Given** a hardware keyboard, D-pad/keyboard navigation, or TalkBack,
+**When** focus moves through the Remote,
+**Then** the order is topbar/switcher → banner actions when present → utility row → function keys → D-pad → state line (and "It worked" when shown) → launcher; there is no one-time chip in this story,
+**And** within the D-pad, focus follows spatial order Up → Left → OK → Right → Down and does not reverse in RTL; within a mirrored row, traversal follows visual start-to-end,
+**And** the 2dp focus ring is visible on every focused key and action, is not clipped by the ring, scrim, or insets, and the focused item exposes its focused state,
+**And** a sheet moves focus to its title, traps focus inside until dismissed, and returns it to the trigger on drag-down, scrim, or back; if the trigger is gone (for example, the TV was forgotten), focus goes to the Remote switcher or the no-TV primary action, never nowhere,
+**And** the background Remote is not focusable or announced while a sheet is open; one sheet at a time; the grabber and scrim are not focus stops,
+**And** a TV-details Forget confirmation moves focus to the confirmation heading and returns it to "Forget TV" on Cancel; a permission explainer starts at its title and returns to the action that opened it,
+**And** disabled keys and launcher slots remain in traversal so their state is reachable, but they send nothing and fire no command haptic.
+
+**AC4 — 200% font scale, 1.3× expansion, and the short viewport**
+**Given** font scale 200% on the 360×800dp reference phone, a 1.3× string-expansion pseudo-locale, and the 360×640dp stress viewport,
+**When** the Epic 1 surfaces render,
+**Then** the launcher becomes a 3×2 grid with the same six slots and fixed order; function-key labels wrap to two lines and the row grows; the state line wraps to two lines and the hero shifts upward; the ring stays 236dp until the quiet space collapses, then may shrink to 208dp,
+**And** at 208dp the D-pad uses a compact 56/70/56 column and 52/70/52 row grid with 4dp gaps; directions stay at least 56dp wide and 52dp high, OK stays 70dp, chevrons and labels are unchanged, and no target drops below 48dp,
+**And** the 360×800dp reference is the release gate; the 360×640dp viewport at 200% is a stress check. If the full stack cannot fit without clipping, the story records a named finding and a design follow-up; it never clips, overlaps, pushes a control under the gesture bar, or silently adds horizontal scrolling,
+**And** where a fixed 100% height would clip copy (topbar title, function row, banner, launcher), the component grows rather than ellipsizing; the 56dp topbar, 52dp function row, 84dp launcher, and two-line banner limits are 100% values, not truncation rules at 200%,
+**And** sheets scroll vertically at 200%, keep their title and primary action reachable, never scroll horizontally, and the manual-IP field scrolls above the IME with its error visible,
+**And** no critical label truncates: key labels, function labels, launcher labels, state words, banner copy, button labels, sheet titles, capability labels, and Forget confirmation copy wrap or grow; only the topbar TV name and non-critical metadata may ellipsize, and the full name stays in the switcher and TV details; the SPKI fingerprint wraps or scrolls inside its code block,
+**And** at 1.3× expansion no button, row, or state line clips or ellipsizes critical copy; state-line numerals stay tabular and the state word never truncates,
+**And** there is no new tablet or landscape layout: landscape uses the same centered 480dp column with the launcher at the bottom and the same compression rules.
+
+**AC5 — RTL layout and physical glyphs**
+**Given** the phone is in RTL using the `ar-XB` pseudo-locale or forced RTL,
+**When** the Epic 1 surfaces render,
+**Then** `android:supportsRtl="true"` is set and the app does not force LTR globally; text alignment, start/end padding, topbar switcher order, list and card rows, sheet headers, banners, button rows, and the six-slot launcher mirror, while the logical order of slots and keys is unchanged,
+**And** the TV-switcher caret and the topbar Back affordance mirror to the reading direction; the health dot, TV name, ring, and state line are not flipped or transformed; no text or icon uses `scaleX(-1)`,
+**And** the D-pad keeps its physical 3×3 geometry and chevron orientation (Left stays left, Right stays right, Up stays up, Down stays down); the D-pad cluster is pinned to LTR for layout while its labels remain localized,
+**And** volume up/mute/down, play/pause, power, and media transport glyphs do not mirror; their rows mirror only as rows, and no glyph is drawn with a negative scale,
+**And** focus traversal follows visual start-to-end in mirrored rows while the group order stays topbar → banner → utility → function → D-pad → state line → launcher,
+**And** IP, masked MAC, fingerprint, and other code values stay LTR with bidi isolation; dates and times use the locale; strings are externalized with no concatenated sentences; 1.3× expansion still fits,
+**And** no text, control, caret, or sheet clips horizontally at 200% or 1.3×; no hardcoded left/right padding breaks RTL; the switcher caret remains visible next to a truncated TV name.
+
+**AC6 — Reduced motion**
+**Given** the system animator duration scale is 0 (Remove animations / reduced motion),
+**When** the user presses keys and opens sheets,
+**Then** the ring has no 900ms breath, no glow pulse, and no fade; it changes color and static glow instantly, and the Observed 4s hold ends with an instant return to Idle,
+**And** pressed keys change tone but do not scale to 0.98; the 80ms scale is absent,
+**And** the health dot does not pulse during reconnect; its amber color and label are unchanged,
+**And** the sheet transition is a short fade with no slide, spring, or scale; the scrim does not slide; one sheet at a time,
+**And** no looping animation exists: no `rememberInfiniteTransition`, `infiniteRepeatable`, autoplay, parallax, shimmer, or spinner; under reduced motion there is no reconnect pulse at all, and in the normal-motion path any reconnect pulse is a single pulse on entering Reconnecting and never loops,
+**And** reduced motion changes no state, timing threshold, copy, or haptic; Submitted, Unconfirmed, Observed, and Offline keep their 3s/4s semantics and the state line still names them,
+**And** changing the system setting while the app is open takes effect without a restart and does not replay an old animation; the motion policy exposes one reduced-motion input, wired to the system setting in Epic 1 and available to Epic 2's preference without a second animation path.
+
+**AC7 — Haptics**
+**Given** the system haptic feedback setting is on and the device has a vibrator,
+**When** the user performs a remote key gesture,
+**Then** exactly one 8ms tick fires at gesture start for that key, including D-pad, utility, function, and power keys; no tick fires on key-up, a repeat frame, or a synthesized press/release, so a 2s held direction is still one tick,
+**And** when the current gesture reaches Observed (TV confirmed or You confirmed), exactly two 8ms ticks fire once with one gap constant defined in the pattern table; when it reaches Unconfirmed, one 12ms pulse fires once; when the ring enters Offline, one 20ms pulse fires once; Submitted, Idle, and Reconnecting produce no outcome pattern, and disabled-key taps do not repeat the Offline pulse,
+**And** only the ring's current gesture produces an outcome pattern; stale evidence, an older generation, or an ignored late event is silent,
+**And** the "It worked" action adds no separate press tick on top of the Observed pattern,
+**And** Back long-press is not enabled in Epic 1 (Story 1.13), so there is no 1.2s threshold and no threshold haptic,
+**And** if the system haptic setting is off, the device has no vibrator, or haptics are otherwise unavailable, no haptic is emitted, no error or toast appears, and the app remains fully usable; haptics never replace the ring, state line, or banner,
+**And** no app-level haptics toggle or Settings surface is added; Epic 1 reads the system setting only and the haptics owner exposes one `enabled` input and one pattern table so Epic 2 can add its independent toggle without changing call sites,
+**And** a socket write never produces a success haptic; power off gets the key tick and, if unobserved, the 12ms Unconfirmed pulse, never an Observed pattern without evidence; no sound is used,
+**And** this story adds the normal install-time `VIBRATE` permission and updates NFR16's permission list in the same change; it is install-time only, adds no runtime prompt or data access, and all vibration calls go through the one haptics owner.
+
+**AC8 — Targets, contrast, and color-not-alone**
+**Given** the audited surfaces,
+**When** targets, tokens, and state cues are measured,
+**Then** every touch target is at least 48dp: direction keys at least 56dp wide and 52dp high (60×56dp standard, 56×52dp compact), OK 70dp, utility segments 60×48dp, function keys 52dp high, launcher slots 52×60dp, topbar 48dp, and "It worked" 48dp; targets do not overlap and the 4dp D-pad structural gap is included in each direction key's effective target,
+**And** the DESIGN.md measured pairs hold: `ink-primary` on `surface-base` 15.45:1 (AAA), `ink-secondary` 6.85:1 (AA), `accent` 10.17:1, `ink-on-accent` on `accent` 10.14:1 and on `accent-pressed` 6.99:1, `ink-disabled` on `surface-key` 4.50:1, `banner-action` 8.30:1, `banner-ink` on `banner-surface` 12.67:1, `focus-ring` on `surface-key` 9.39:1, and observed/unconfirmed/offline rings 10.17:1/11.94:1/7.06:1; `ring-idle` and hairlines remain 1.56:1 exceptions only because the state line and labels name the state,
+**And** color is never alone: ring + state word, health dot + accessibility label, capability text plate, disabled slots dashed + lock + label, current row "Current" + check, errors text + message, focus 2dp ring,
+**And** disabled keys and slots keep a readable label and a programmatic disabled state; disabled styling is never the only signal, and informational text (state line, banner, capability, errors) never uses `ink-disabled` or reduced opacity,
+**And** the specified 45% disabled-key treatment is an inactive-control affordance, not information: the key name, disabled state, and offline reason remain available in text and speech, and no enabled or informational text is dimmed,
+**And** no new color, gradient, shadow, blur, or token is introduced; the focus ring is visible on every surface and is not obscured by the scrim, insets, or the ring,
+**And** all target and contrast checks pass at 200%, 1.3×, and RTL; no target is shrunk to make copy fit.
+
+**AC9 — State truth and no feature drift**
+**Given** the accessibility, motion, and haptic changes,
+**When** the Remote reports a command or connection state,
+**Then** every announcement, ring state, and haptic is derived from the existing `CommandOutcome`, `CommandTracker`, `ConnectionHealth`, and ring/health state; no second state owner, tracker, timer, or stored preference is added,
+**And** a socket write never produces Observed, "TV confirmed," a success haptic, or an assertive success announcement; Submitted stays Submitted until evidence or the injected timeout, and Unconfirmed is not presented as failure,
+**And** on socket close or target change an open gesture resolves to Idle as before; it never becomes Unconfirmed or Observed, and late evidence or an older generation produces no haptic, no announcement, and no ring change,
+**And** the health dot remains connection health and the ring remains command state; neither is announced, colored, or haptically signaled as the other, and the fixed precedence for identity changed, pairing required, offline, reconnecting, asleep, and awake is unchanged,
+**And** no key, command, protocol frame, queue, retry, backoff, target rule, capability row, trust behavior, or reconnect policy changes; keys stay enabled while the socket is open but silent and disabled when it is closed,
+**And** no new product surface, Settings, haptics or reduced-motion toggle, permission beyond the normal `VIBRATE` above, multi-TV, Add a TV, launcher enablement, text, pointer, voice, cast, mirror, wake, one-time chip (Story 1.15), or accessibility-only mode is added,
+**And** no new copy is introduced beyond accessibility labels that restate existing visible copy; no success, capability, or support claim changes.
+
+**AC10 — Testability and scope discipline**
+**Given** the implementation,
+**When** the story is verified,
+**Then** automated tests cover semantics names/roles/disabled states, ring not focusable, live-region modes, focus order and sheet trap/return, target bounds, contrast ratios from tokens, 200%/1.3× layout, RTL glyph and layout rules, reduced-motion policy, and haptics policy with a fake effect sink (one gesture tick, zero repeat ticks, two Observed pulses, one 12ms Unconfirmed, one 20ms Offline, silent when disabled),
+**And** Compose/UI tests use the existing fake `CommandTracker`/`ConnectionHealth` fixtures from Stories 1.11–1.13 and require no live TV; no test asserts a socket write as success or prints token, pin, SPKI, full MAC, IP, or WSS URL,
+**And** manual checks on a physical phone cover TalkBack, 200% font scale, 1.3× pseudo-locale, RTL, reduced motion, and system haptics on/off across the AC1 surfaces; the audit record is committed at `_bmad-output/implementation-artifacts/a11y-audit-epic1.md`,
+**And** source checks reject user-visible hardcoded strings, infinite animation APIs, direct vibration or `performHapticFeedback` calls outside the one haptics owner, sound APIs, and hardcoded left/right padding in RTL-sensitive components,
+**And** `./gradlew build lint :core:test` passes; the story adds no tablet or landscape layout, no new dependency, no Settings, no new feature, and no protocol or state-model change,
+**And** any finding that cannot be fixed here is a named exception with an owner and a next action, not a silent acceptance.
+
+### Story 1.15: Explain a model's limits once and keep the record honest
+
+As the pilot user,
+I want one clear explanation when this TV can't confirm keys or can't be woken, and a durable record in TV details,
+So that I don't mistake a model limitation for a failed key and I don't see the same warning every time.
+
+**FRs:** FR12, FR24 (power-off warning and durable no-wake record), FR38 (chip-dismissal persistence subset); UX-DR3, UX-DR4, UX-DR5, UX-DR9, UX-DR19, UX-DR27, UX-DR29, UX-DR35 (TV details subset), UX-DR39, UX-DR43; NFR2, NFR3, NFR9, NFR12, NFR17; AD-3, AD-4.
+
+**Out of scope:** new keys, commands, `CommandTracker`, ring, repeat, or key layouts; utility/function/power behavior; Settings and the app-level haptics/reduced-motion toggles; full TV details/four capability labels (Epic 2); multi-TV/Add TV; launcher enablement or disabled-slot explanation sheets; text, pointer, voice, cast, mirror, wake; per-key capability probes or matrix rows; Back long-press; haptics; new permissions; protocol frames; command queue/retry/background socket; confirmation sheets; power toggle; a new asleep or power state; cloud/telemetry.
+
+**Acceptance Criteria:**
+
+**AC1 — One-time chip component and placement**
+**Given** the Remote is open for a durable target and Story 1.8's `CapabilityLabelTracker` or the power-off limitation applies,
+**When** a one-time explanation is due,
+**Then** at most one chip is shown below the topbar and below any banner, above the utility row; it is a 48dp-minimum raised strip with a 1dp hairline, 14dp radius, 14dp padding, 14sp secondary text, an 18dp info glyph, and a 48dp close target, and it pushes content rather than overlaying it,
+**And** the key-limit chip appears only when `Keys/Device` is `BestEffort` or `NotSupported` and says "This TV can't confirm keys — they may still work."; it makes no per-key claim because Epic 1's matrix exposes a device-level key result, not per-key support,
+**And** no key-limit chip appears when `Keys/Device` is `Works` or `NotTested`; the app does not invent a limitation from silence,
+**And** the power-off warning appears before the first power-off on a durable target: "Power off only. This build can't wake the TV; use the TV's power button."; it is one-time, never a confirmation, and never blocks or intercepts the power key,
+**And** when both limits apply, the power warning is shown first; after it is dismissed, the key-limit chip may appear; only one is visible at a time, and both remain recorded in TV details,
+**And** the chip never calls `submit()`, writes a frame, opens a sheet, or changes the ring, state line, health, or power state; the keys remain usable while it is shown.
+
+**AC2 — One-time dismissal and persistence**
+**Given** a chip is shown,
+**When** the user taps its 48dp close,
+**Then** it is dismissed for that TV and limit identity and does not return on recomposition, a new Remote session, or process restart,
+**And** dismissals are stored in the existing Room persistence layer per FR38, keyed by `TvId`, limit id, firmware, and matrix/probe version where applicable; they are not held only in memory or in a second preferences store,
+**And** a dismissal is re-evaluated only when the TV is re-paired, its firmware changes, the matrix or probe result for the key limit changes, or the build's wake capability changes; the power warning is not shown when the build can wake the TV, and a chip never returns merely because time passed,
+**And** forgetting the TV deletes its chip dismissal rows with the TV record; a re-paired TV starts with the warning due again,
+**And** the store has one owner, no duplicate chip records, and no unredacted secret or full MAC in its keys or values,
+**And** a session-only target may show the power warning once per session but has no durable key-limit chip or TV details record because Story 1.8 exposes no durable capability label without a `TvId`; this limitation is stated, not hidden.
+
+**AC3 — Durable limits in TV details**
+**Given** Story 1.6's trust sheet for a durable TV,
+**When** it is opened and a limit exists,
+**Then** it shows a "Limits" section with the device-level key label ("Best-effort" or "Not supported") and the power-off note "Power off only; this build can't wake the TV."; no full four-label matrix or Settings surface is added,
+**And** the section reads the same `CapabilityLabelTracker` as the Remote; it does not depend on whether the chip was dismissed, opens no socket, sends no command, and adds no second resolver, matrix row, or stored label,
+**And** the durable record is the source of truth and the chip is only a nudge; dismissing the chip does not erase the limit, and tapping "It worked" does not change the capability label,
+**And** when no limit exists, the section is absent; the app does not claim "all keys work" or "this TV is fully supported" from the absence of a chip,
+**And** the trust sheet's existing identity, masked MAC, IP, SPKI fingerprint, Tizen version, and Forget action are unchanged; full TV details remain Epic 2.
+
+**AC4 — Power-off offline copy**
+**Given** the last user-expressed command was power off and the socket then closes into terminal offline,
+**When** the existing Story 1.10 offline banner is shown,
+**Then** it uses the power-aware copy "TV may be off. Use the TV's power button; this build can't wake it." with the existing "Retry" and "Not now" actions, within the two-line-plus-action limit,
+**And** the Remote keeps one session-scoped `lastCommandWasPowerOff` flag, set only by the power-off submit and cleared by any other submit, reconnect, target change, or session end; it selects this copy and is not a command outcome, does not alter the tracker, and is never persisted,
+**And** the copy says "may be off," never "TV off," "Asleep," or "Power off succeeded"; the socket close and health transition are not command evidence,
+**And** the banner remains owned by `ConnectionHealth` and the existing offline state; this story adds no new health state, timer, retry policy, or power-state writer,
+**And** the generic offline copy remains for every other disconnect; the power-aware copy appears only after a power-off gesture on the current target,
+**And** reconnecting or a successful Retry clears the banner and restores the existing online state; the ring's command outcome is `Idle` after the close, not Observed, and no success haptic or announcement is produced.
+
+**AC5 — Truth, no per-key claim, and no false success**
+**Given** the chip, TV details record, and offline copy,
+**When** the app explains a limit,
+**Then** every statement is derived from the existing `CapabilityLabelTracker` or the build's known no-wake limitation; no new capability label, per-key probe, matrix key, or support claim is invented,
+**And** the app never says "This TV doesn't report [key]" in Epic 1 because there is no per-key signal; the model-level copy is used instead, and the per-key version is reserved for a later story with recorded per-key evidence,
+**And** a key remains visible and usable while its limit is explained; the app does not hide it, disable it, call it failed, or use a red error state,
+**And** the power warning is a build limitation, not a claim about the TV model; it says the build cannot wake the TV and names the physical power button as the next action,
+**And** the chip, record, and copy never turn a socket write, a disconnect, or the absence of evidence into success, "TV confirmed," or "TV off"; command truth remains Story 1.11's owner.
+
+**AC6 — Accessibility**
+**Given** TalkBack, 200% font scale, RTL, and reduced motion,
+**When** the chip and TV details Limits section are used,
+**Then** the chip body is announced once as a polite status when it appears and is not re-announced on recomposition, focus change, or rotation; the 48dp close button is named "Dismiss explanation" and is the only focus stop inside the chip,
+**And** the chip text wraps to at most two lines at 100% and grows rather than clipping at 200%; the close target stays 48dp, the info glyph is decorative, and the layout uses Start/End so the close moves to the reading-direction end in RTL,
+**And** focus order is topbar → banner actions → chip close → utility row → function keys → D-pad → state line → launcher; the chip does not trap focus and the underlying keys remain reachable,
+**And** the TV details Limits section uses text labels, not color alone; rows read the limit and the next action, and the 1.14 focus, target, contrast, and live-region rules apply,
+**And** the chip adds no haptic, sound, animation, or new color; reduced motion changes nothing because the chip does not animate,
+**And** Story 1.15 updates `_bmad-output/implementation-artifacts/a11y-audit-epic1.md` with the chip and Limits section so the Epic 1 audit covers the final surface.
+
+**AC7 — Testability**
+**Given** the chip selection, dismissal store, TV details, and offline copy,
+**When** the JVM, Compose, and manual suites run,
+**Then** JVM tests cover: no chip for `Works`/`NotTested`; the model-level chip for `BestEffort`/`NotSupported`; no per-key copy; power warning due before the first power-off; power warning priority when both limits apply; one chip at a time; dismissal persistence and no return; re-evaluation on re-pair, firmware change, matrix/probe change, and build wake-capability change, with no power warning when the build can wake; delete on Forget; no label change from "It worked"; no tracker/command call,
+**And** banner tests cover the power-aware copy only after a power-off plus offline, the generic copy for other disconnects, no "TV off"/"Asleep"/success claim, and the existing Retry/Not now behavior,
+**And** Compose/UI tests cover the 48dp close, two-line layout, 200%/RTL growth, focus order, TalkBack announcement, TV details Limits section, and no horizontal scrolling,
+**And** no test requires a live TV, asserts a socket write as success, or prints token, pin, SPKI, full MAC, IP, or WSS URL; the tests reuse Story 1.8's label fixtures, Story 1.6's trust-sheet fixtures, Story 1.10's health/banner fixtures, and Story 1.12's power key fixture.
+
+**AC8 — Scope discipline**
+**Given** this story,
+**When** its diff and visible surfaces are reviewed,
+**Then** the only product changes are the one-time chip, its dismissal persistence, the TV details Limits section, and the power-aware offline copy,
+**And** it adds no key, command, tracker, ring state, repeat, power toggle, confirmation sheet, Settings, full TV details, four-label list, multi-TV, launcher enablement, disabled-slot explanation sheet, text, pointer, voice, cast, mirror, wake, Back long-press, haptic, new permission, protocol frame, command queue, retry, background socket, cloud, or telemetry,
+**And** it adds no second `CapabilityLabelTracker`, resolver, matrix row, per-key probe, `ConnectionHealth`, or power-state writer, and only one new chip-dismissal store; it reuses Story 1.8's label owner, Story 1.6's trust sheet, Story 1.10's Remote/banner, and Story 1.12's power key,
+**And** it does not change the existing command-truth, health precedence, target, or session rules; all keys remain visible and usable, and no limit explanation is presented as a failure,
+**And** the per-key FR12 wording remains a recorded Epic 1 limitation: the current matrix is device-level, so the model-level chip is the honest implementation until per-key evidence exists,
+**And** the power-off warning is informational, not a confirmation; tapping power still sends exactly one `PowerOff` through Story 1.12.

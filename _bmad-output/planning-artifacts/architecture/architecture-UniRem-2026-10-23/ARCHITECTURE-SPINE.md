@@ -175,7 +175,7 @@ No other project dependencies exist. `:core` has no outgoing edge.
 | Telemetry | None in V1: no analytics, crash-reporting, or remote-config SDK. Adding one requires an AD-8 exemption and a UX copy change. |
 | Environments | `debug` includes the matrix harness and overlay, verbose redacted logs, and strict-mode checks. `release` reads the asset matrix only and has no harness. There is no backend and no staging environment. |
 | CI | Every change runs the Gradle build, lint, and `:core` JVM tests. Instrumentation and physical matrix runs are manual on owned TVs; results are committed as matrix rows. |
-| Permissions | `INTERNET`, `ACCESS_NETWORK_STATE`, `ACCESS_WIFI_STATE`, `CHANGE_WIFI_MULTICAST_STATE`, `POST_NOTIFICATIONS`, `RECORD_AUDIO` for the Voice sheet, the local-network permission for API 37, and MediaProjection consent from an Activity. No storage permissions; the Photo Picker is the only picker. |
+| Permissions | `INTERNET`, `ACCESS_NETWORK_STATE`, `ACCESS_WIFI_STATE`, `CHANGE_WIFI_MULTICAST_STATE`, `POST_NOTIFICATIONS`, `RECORD_AUDIO` for the Voice sheet, `VIBRATE` (normal install-time, haptics only), the local-network permission for API 37, and MediaProjection consent from an Activity. No storage permissions; the Photo Picker is the only picker. |
 | FGS types | Cast `connectedDevice`; mirror `mediaProjection`; voice `microphone`. Only for user-started sessions. |
 | Multicast | `LanAccessGate` owns the single process-wide `MulticastLock`; jUPnP's own lock is disabled. |
 | Secrets | Keystore only. No secret in BuildConfig, resources, or logs; pairing material is backup-excluded. |
