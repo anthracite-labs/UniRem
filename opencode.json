@@ -6,7 +6,7 @@
         "type": "local",
         "command": ["token-savior"],
         "environment": {
-          "TOKEN_SAVIOR_PROFILE": "optimized"
+          "TOKEN_SAVIOR_PROFILE": "full"
         }
       }
     }
