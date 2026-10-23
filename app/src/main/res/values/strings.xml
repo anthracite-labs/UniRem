@@ -108,4 +108,18 @@
     <string name="trust_retry_cd">Retry forgetting this TV</string>
     <string name="trust_close">Close</string>
     <string name="trust_close_cd">Close the error</string>
+
+    <string name="connection_check">Check connection</string>
+    <string name="connection_check_cd">Check the TV connection</string>
+    <string name="connection_paired">Paired</string>
+    <string name="connection_reconnecting">Reconnecting…</string>
+    <string name="connection_offline">The TV is offline.</string>
+    <string name="connection_identity_changed">This TV\'s identity changed. Re-pair to continue.</string>
+    <string name="connection_pairing_required">Pairing is required for this TV.</string>
+    <string name="connection_retry">Retry</string>
+    <string name="connection_retry_cd">Retry the connection</string>
+    <string name="connection_not_now">Not now</string>
+    <string name="connection_not_now_cd">Stop retrying for now</string>
+    <string name="connection_repair">Re-pair</string>
+    <string name="connection_repair_cd">Pair this TV again</string>
 </resources>

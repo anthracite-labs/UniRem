@@ -35,6 +35,11 @@ import com.unirem.core.api.LanAccess
 import com.unirem.core.api.NetworkType
 import com.unirem.core.api.RedactedLog
 import com.unirem.core.api.TvId
+import com.unirem.connection.BannerKind
+import com.unirem.connection.ConnectionController
+import com.unirem.connection.ConnectionScreen
+import com.unirem.connection.RePairCommit
+import com.unirem.connection.TargetSessionHolder
 import com.unirem.gate.LanAccessGate
 import com.unirem.setup.AddTvScreen
 import com.unirem.setup.PairedScreen
@@ -45,12 +50,15 @@ import com.unirem.setup.TrustLogic
 import com.unirem.setup.TrustSheet
 import com.unirem.tv.KeystorePairingStore
 import com.unirem.tv.RoomTvStore
+import com.unirem.tv.wire
 import com.unirem.tv.api.DiscoveryResult
 import com.unirem.tv.api.PairOutcome
 import com.unirem.tv.api.PairingEntry
 import com.unirem.tv.api.TvCandidate
 import com.unirem.tv.api.TvGateways
 import com.unirem.tv.api.FingerprintFormat
+import com.unirem.tv.api.ConnectionBackoff
+import com.unirem.tv.channel.ConnectionHealth
 import com.unirem.ui.graphitemint.GraphiteMintSpacing
 import com.unirem.ui.graphitemint.GraphiteMintTheme
 import kotlinx.coroutines.Dispatchers
@@ -110,6 +118,20 @@ class MainActivity : ComponentActivity() {
                 var trustEntry by remember { mutableStateOf<PairingEntry?>(null) }
                 var trustEntryLoaded by remember { mutableStateOf(false) }
                 val detailsFocus = remember { FocusRequester() }
+                // Story 1.7: process-scoped target plus the socket-scoped
+                // status-surface destination. No screen owns the target and no
+                // last-used value is persisted; a relaunch shows "Paired".
+                val targetSession = remember { TargetSessionHolder() }
+                var connectionTvIdHex by remember { mutableStateOf<String?>(null) }
+                var connEntry by remember { mutableStateOf<PairingEntry?>(null) }
+                var connLoaded by remember { mutableStateOf(false) }
+                var connRunJob by remember { mutableStateOf<Job?>(null) }
+                var rePairing by remember { mutableStateOf(false) }
+                var rePairDenied by remember { mutableStateOf(false) }
+                var rePairTimedOut by remember { mutableStateOf(false) }
+                var rePairFailed by remember { mutableStateOf<String?>(null) }
+                var rePairCandidate by remember { mutableStateOf<TvCandidate?>(null) }
+                var rePairTargetHex by rememberSaveable { mutableStateOf<String?>(null) }
 
                 val discovery = remember {
                     TvGateways.discovery(
@@ -122,6 +144,48 @@ class MainActivity : ComponentActivity() {
                 }
                 val tvStore = remember { RoomTvStore.get(applicationContext) }
                 val pairingStore = remember { KeystorePairingStore(applicationContext) }
+                val connectionSession = remember {
+                    TvGateways.connection(gateCheck = { gate.checkBeforeAttempt() })
+                }
+                // One health owner per open surface; recreated per TvId so a
+                // stale socket never leaks into the next surface.
+                val connectionHealth = remember(connectionTvIdHex) { ConnectionHealth() }
+                val connectionController = remember(connectionTvIdHex) {
+                    ConnectionController(
+                        session = connectionSession,
+                        health = connectionHealth,
+                        schedule = ConnectionBackoff.jittered {
+                            kotlin.random.Random.nextDouble()
+                        },
+                        freshIdentityOf = { ip ->
+                            try {
+                                when (val read = discovery.readManual(ip)) {
+                                    is DiscoveryResult.Found -> read.targets.firstOrNull()?.tvId
+                                    else -> null
+                                }
+                            } catch (e: Exception) {
+                                null
+                            }
+                        },
+                        rescanSameTv = {
+                            val wanted = connectionTvIdHex
+                            if (wanted == null) {
+                                null
+                            } else {
+                                try {
+                                    when (val scanned = discovery.scan()) {
+                                        is DiscoveryResult.Found -> scanned.targets
+                                            .firstOrNull { it.tvId?.hex == wanted }?.ip
+                                        else -> null
+                                    }
+                                } catch (e: Exception) {
+                                    null
+                                }
+                            }
+                        },
+                    )
+                }
+                val connSnapshot by connectionController.snapshot.collectAsState()
 
                 LaunchedEffect(Unit) {
                     records = withContext(Dispatchers.IO) { tvStore.all() }
@@ -233,6 +297,7 @@ class MainActivity : ComponentActivity() {
                     pairJob?.cancel()
                     pairJob = null
                     pairingWaiting = false
+                    RedactedLog.debug(TAG, "Pair cancelled")
                 }
 
                 fun runPair(candidate: TvCandidate) {
@@ -288,6 +353,188 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
+                // Story 1.7: socket-scoped session. Starts exactly one
+                // connection from the stored record, token, and pin; leaving
+                // closes the socket and stops backoff. No auto-connect on
+                // launch or while closed; the paired summary stays "Paired".
+                fun closeConnection() {
+                    connRunJob?.cancel()
+                    connRunJob = null
+                    connectionController.stop()
+                    connEntry = null
+                    connLoaded = false
+                    rePairing = false
+                    rePairDenied = false
+                    rePairTimedOut = false
+                    rePairFailed = null
+                    rePairCandidate = null
+                    rePairTargetHex = null
+                    connectionTvIdHex = null
+                    targetSession.clear()
+                    route = SetupRoute.Shell
+                }
+
+                fun startConnectionRun(
+                    tvIdHex: String,
+                    ip: String,
+                    pin: String,
+                    token: String?,
+                    tokenAuth: Boolean,
+                ) {
+                    connRunJob?.cancel()
+                    val running = scope.launch(Dispatchers.IO) {
+                        connectionController.run(TvId(tvIdHex), ip, pin, token, tokenAuth)
+                    }
+                    connRunJob = running
+                    connectionController.attachJob(running)
+                }
+
+                // Re-pair reuses the Story 1.5 Allow/Deny flow token-less with
+                // the stored name/identity and the always-visible no-remote
+                // path. Deny, timeout, or failure keeps the old record and
+                // trust with the banner staying; old trust dies only after
+                // the new commit verifies.
+                fun runRePairPair(candidate: TvCandidate, storedHex: String) {
+                    if (rePairing) return
+                    rePairing = true
+                    rePairDenied = false
+                    rePairTimedOut = false
+                    rePairFailed = null
+                    scope.launch(Dispatchers.IO) {
+                        val storedId = TvId(storedHex)
+                        val outcome = pairing.pair(candidate)
+                        when (outcome) {
+                            is PairOutcome.Paired -> {
+                                val ok = RePairCommit.commit(
+                                    storedTvId = storedId,
+                                    freshCandidate = candidate,
+                                    freshTvId = candidate.tvId,
+                                    token = outcome.token,
+                                    pin = outcome.pin,
+                                    pairingStore = pairingStore,
+                                    tvStore = tvStore,
+                                    networkTypeWire = snapshot.networkType.wire(),
+                                    networkInterface = interfaceLabel(snapshot.networkType),
+                                )
+                                withContext(Dispatchers.Main) {
+                                    rePairing = false
+                                    if (!ok) {
+                                        rePairFailed = getString(R.string.pairing_not_stored)
+                                    } else {
+                                        rePairCandidate = null
+                                        rePairTargetHex = null
+                                        connEntry = PairingEntry(outcome.token, outcome.pin)
+                                        connLoaded = true
+                                        startConnectionRun(
+                                            storedId.hex,
+                                            candidate.ip,
+                                            outcome.pin,
+                                            outcome.token,
+                                            candidate.tokenAuthSupport,
+                                        )
+                                    }
+                                    records = tvStore.all()
+                                }
+                            }
+                            PairOutcome.Denied -> withContext(Dispatchers.Main) {
+                                rePairing = false
+                                rePairDenied = true
+                            }
+                            PairOutcome.TimedOut -> withContext(Dispatchers.Main) {
+                                rePairing = false
+                                rePairTimedOut = true
+                            }
+                            else -> withContext(Dispatchers.Main) {
+                                rePairing = false
+                                rePairFailed = getString(R.string.pairing_not_stored)
+                            }
+                        }
+                    }
+                }
+
+                fun runRePair(record: com.unirem.tv.TvRecord) {
+                    if (rePairing || rePairCandidate != null) return
+                    connRunJob?.cancel()
+                    connRunJob = null
+                    rePairDenied = false
+                    rePairTimedOut = false
+                    rePairFailed = null
+                    scope.launch(Dispatchers.IO) {
+                        val storedId = TvId(record.tvId)
+                        val read = try {
+                            discovery.readManual(record.lastIp)
+                        } catch (e: Exception) {
+                            null
+                        }
+                        val fresh = (read as? DiscoveryResult.Found)?.targets?.firstOrNull()
+                        // Fresh identity must equal the stored TvId or the
+                        // re-pair fails closed with stored trust untouched. A
+                        // null read (TV silent) moves to Offline; a mismatch
+                        // stays silent with the banner kept.
+                        if (fresh == null) {
+                            withContext(Dispatchers.Main) {
+                                connectionController.notNow()
+                            }
+                            return@launch
+                        }
+                        if (fresh.tvId?.hex != storedId.hex) {
+                            return@launch
+                        }
+                        withContext(Dispatchers.Main) {
+                            rePairCandidate = fresh
+                            rePairTargetHex = storedId.hex
+                            runRePairPair(fresh, storedId.hex)
+                        }
+                    }
+                }
+
+                fun cancelRePair() {
+                    rePairing = false
+                    rePairCandidate = null
+                    rePairTargetHex = null
+                    rePairDenied = false
+                    rePairTimedOut = false
+                    rePairFailed = null
+                }
+
+                // Open the surface: select the process-scoped target, load
+                // the stored trust, then start the single connection. The
+                // Keystore read gates the first attempt so no socket opens
+                // without the stored pin.
+                LaunchedEffect(connectionTvIdHex) {
+                    val hex = connectionTvIdHex
+                    if (hex == null) {
+                        connEntry = null
+                        connLoaded = false
+                    } else {
+                        targetSession.select(TvId(hex))
+                        connLoaded = false
+                        val entry = withContext(Dispatchers.IO) { pairingStore.load(TvId(hex)) }
+                        connEntry = entry
+                        connLoaded = true
+                        val record = records.firstOrNull { it.tvId == hex }
+                        if (record != null && entry != null) {
+                            startConnectionRun(
+                                hex,
+                                record.lastIp,
+                                entry.pin,
+                                entry.token,
+                                entry.token != null,
+                            )
+                        } else if (record != null) {
+                            // Stored record but no Keystore entry: terminal
+                            // pairing-required, no socket work.
+                            connectionController.showPairingRequired()
+                        }
+                    }
+                }
+                // Network change is a socket close, never stale-socket reuse.
+                LaunchedEffect(snapshot.networkType) {
+                    if (connectionTvIdHex != null && connLoaded) {
+                        connectionController.onNetworkChanged()
+                    }
+                }
+
                 when (val current = route) {
                     SetupRoute.Shell -> {
                         val summary = records.firstOrNull()?.let {
@@ -335,6 +582,16 @@ class MainActivity : ComponentActivity() {
                             },
                             detailsFocusRequester = detailsFocus,
                             sessionOnlyActive = sessionOnlyActive,
+                            onCheckConnection = {
+                                val hex = records.firstOrNull()?.tvId
+                                if (hex != null) {
+                                    rePairDenied = false
+                                    rePairTimedOut = false
+                                    rePairFailed = null
+                                    connectionTvIdHex = hex
+                                    route = SetupRoute.Connection(hex)
+                                }
+                            },
                         )
                         // Durable-only trust sheet keyed by TvId. Session-only
                         // targets get no sheet. Gated on the finished
@@ -519,6 +776,93 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                     }
+                    is SetupRoute.Connection -> {
+                        val record = records.firstOrNull { it.tvId == current.tvIdHex }
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.TopCenter,
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .widthIn(max = GraphiteMintSpacing.MaxColumnWidth)
+                                    .windowInsetsPadding(WindowInsets.safeDrawing)
+                                    .padding(horizontal = GraphiteMintSpacing.ScreenX)
+                                    .padding(top = GraphiteMintSpacing.X10),
+                            ) {
+                                if (record == null) {
+                                    SetupTopBar(onBack = { closeConnection() })
+                                    Spacer(modifier = Modifier.height(GraphiteMintSpacing.X4))
+                                } else if (rePairCandidate != null) {
+                                    // Re-pair Allow flow, reused from Story 1.5
+                                    // with the stored identity: the TV shows
+                                    // its Allow prompt, the no-remote path
+                                    // stays visible, no old token is sent.
+                                    // Back keeps the connection banner.
+                                    val candidate = rePairCandidate!!
+                                    val targetHex = rePairTargetHex
+                                    PairingScreen(
+                                        candidate = candidate,
+                                        waiting = rePairing,
+                                        denied = rePairDenied,
+                                        timedOut = rePairTimedOut,
+                                        tokenMissing = false,
+                                        onRetry = {
+                                            if (targetHex != null) {
+                                                runRePairPair(candidate, targetHex)
+                                            }
+                                        },
+                                        onNotNow = { cancelRePair() },
+                                        failureReason = rePairFailed,
+                                    )
+                                } else {
+                                    ConnectionScreen(
+                                        tvName = record.name.ifBlank { getString(R.string.setup_not_reported) },
+                                        state = connSnapshot.state,
+                                        power = connSnapshot.power,
+                                        banner = connSnapshot.banner,
+                                        onBack = { closeConnection() },
+                                        onRetry = {
+                                            val entry = connEntry
+                                            val rec = records.firstOrNull { it.tvId == current.tvIdHex }
+                                            if (entry == null || rec == null) {
+                                                return@ConnectionScreen
+                                            }
+                                            val ip = rec.lastIp
+                                            connRunJob?.cancel()
+                                            connRunJob = scope.launch(Dispatchers.IO) {
+                                                val reached = connectionController.retry(
+                                                    TvId(current.tvIdHex),
+                                                    ip,
+                                                    entry.pin,
+                                                    entry.token,
+                                                    entry.token != null,
+                                                )
+                                                withContext(Dispatchers.Main) {
+                                                    if (reached == null &&
+                                                        connectionController.snapshot.value.banner ==
+                                                        BannerKind.Reconnecting
+                                                    ) {
+                                                        startConnectionRun(
+                                                            current.tvIdHex,
+                                                            ip,
+                                                            entry.pin,
+                                                            entry.token,
+                                                            entry.token != null,
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        onNotNow = {
+                                            connRunJob?.cancel()
+                                            connectionController.notNow()
+                                        },
+                                        onRePair = { runRePair(record) },
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -558,4 +902,5 @@ private sealed interface SetupRoute {
     data object AddTv : SetupRoute
     data class Pairing(val candidate: TvCandidate) : SetupRoute
     data object Paired : SetupRoute
+    data class Connection(val tvIdHex: String) : SetupRoute
 }

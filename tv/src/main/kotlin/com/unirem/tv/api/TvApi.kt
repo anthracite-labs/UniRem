@@ -106,6 +106,72 @@ interface TvPairingControl {
     }
 }
 
+/**
+ * Socket-scoped connection request for Story 1.7. One instance per open
+ * status surface; leaving the surface closes the socket and stops backoff.
+ * No auto-connect on launch or while closed.
+ */
+data class ConnectionRequest(
+    val ip: String,
+    val pin: String,
+    val token: String?,
+    val tokenAuthSupport: Boolean,
+    val timeoutSeconds: Long = TvConnectionControl.CONNECT_TIMEOUT_SECONDS,
+)
+
+/**
+ * Single bounded attempt outcome. `ms.channel.unauthorized` and a TV
+ * re-prompt map to [PairingRequired], pin mismatch to [IdentityChanged];
+ * neither ever maps to offline. Transient socket loss maps to [Offline].
+ */
+sealed interface ConnectionOutcome {
+    data class Connected(val token: String?) : ConnectionOutcome
+    data object PairingRequired : ConnectionOutcome
+    data object IdentityChanged : ConnectionOutcome
+    data object Offline : ConnectionOutcome
+    data object LanDenied : ConnectionOutcome
+    data class Failed(val reason: String) : ConnectionOutcome
+}
+
+/**
+ * Socket-scoped connection seam: pinned connect, 10s bounded attempt, no
+ * queue. The session holder keeps at most one open socket; [close] shuts it,
+ * stops backoff, and leaves the outbound queue empty.
+ */
+interface TvConnectionControl {
+    suspend fun connect(request: ConnectionRequest): ConnectionOutcome
+    fun close()
+    /** Outbound queue depth. Always zero: commands are never queued. */
+    val pendingWrites: Int
+
+    companion object {
+        const val CONNECT_TIMEOUT_SECONDS = 10L
+    }
+}
+
+/**
+ * Atomic alias rotation for re-pair (Story 1.7).
+ *
+ * Writes the new alias first, verifies the commit with a load, then deletes
+ * the old alias only after the commit. When [oldTvId] and [newTvId] match,
+ * this is a plain overwrite with no delete. Returns true only when the new
+ * entry loads back with the written material.
+ */
+suspend fun PairingStore.rotateAlias(
+    oldTvId: com.unirem.core.api.TvId,
+    newTvId: com.unirem.core.api.TvId,
+    token: String?,
+    pin: String,
+): Boolean {
+    save(newTvId, token, pin)
+    val committed = load(newTvId)
+    if (committed == null || committed.pin != pin || committed.token != token) return false
+    if (oldTvId.hex != newTvId.hex) {
+        clear(oldTvId)
+    }
+    return true
+}
+
 /** Persisted TV record shape (Room holds this plus the alias in `:app`). */
 data class TvRecordView(
     val tvIdHex: String,

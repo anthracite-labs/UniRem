@@ -1,6 +1,7 @@
 package com.unirem.tv.api
 
 import com.unirem.core.api.LanAccess
+import com.unirem.tv.internal.ConnectionSession
 import com.unirem.tv.internal.PinnedTlsChannel
 import com.unirem.tv.internal.SsdpDiscovery
 
@@ -18,4 +19,7 @@ object TvGateways {
 
     fun pairing(gateCheck: () -> LanAccess): TvPairingControl =
         PinnedTlsChannel(gateCheck)
+
+    fun connection(gateCheck: () -> LanAccess): TvConnectionControl =
+        ConnectionSession(gateCheck)
 }

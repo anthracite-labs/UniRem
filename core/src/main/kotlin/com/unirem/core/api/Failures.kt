@@ -8,6 +8,10 @@ package com.unirem.core.api
 sealed interface TvFailure {
     /** The gate denied local-network access; no attempt ran. */
     data object LanDenied : TvFailure
+    /** Pin mismatch or fresh `/api/v2/` identity differs; token never sent. */
+    data object IdentityChanged : TvFailure
+    /** Channel reported `ms.channel.unauthorized` or TV re-prompted; no retry with old token. */
+    data object PairingRequired : TvFailure
 }
 
 /** Sealed failure type for the cast seam. See [TvFailure]. */

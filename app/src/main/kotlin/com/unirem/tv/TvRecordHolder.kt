@@ -83,6 +83,43 @@ class RoomTvStore private constructor(private val dao: TvDao) {
     }
 
     /**
+     * Updates the durable record after a successful re-pair (Story 1.7).
+     *
+     * Refreshes name, model, firmware, last-reached IP, network type, and the
+     * interface label, and points [TvRecord.alias] at [alias] (the new alias
+     * after rotation, usually the same [TvId] hex). Identity fields and the
+     * paired timestamp never move. Returns null when no row for [tvId]
+     * remains. Never stores a last-used value.
+     */
+    suspend fun updateOnRePair(
+        tvId: TvId,
+        name: String,
+        model: String,
+        firmware: String,
+        ip: String,
+        networkTypeWire: String,
+        networkInterface: String,
+        alias: String,
+    ): TvRecord? = try {
+        val current = dao.byId(tvId.hex) ?: return null
+        val updated = current.copy(
+            name = name,
+            model = model,
+            firmware = firmware,
+            lastIp = ip,
+            networkType = networkTypeWire,
+            networkInterface = networkInterface,
+            alias = alias,
+        )
+        dao.upsert(updated)
+        RedactedLog.debug(TAG, "TV record updated after re-pair")
+        updated
+    } catch (e: Exception) {
+        RedactedLog.warn(TAG, "TV record update failed")
+        null
+    }
+
+    /**
      * Forgets one durable TV by [TvId]: deletes the Room row plus dependents.
      * Secrets live in Keystore and are cleared separately via
      * `PairingStore.clear`; this holder never touches them. Returns true only

@@ -56,6 +56,7 @@ fun ShellScreen(
     onShowDetails: () -> Unit = {},
     detailsFocusRequester: FocusRequester? = null,
     sessionOnlyActive: Boolean = false,
+    onCheckConnection: () -> Unit = {},
 ) {
     Box(
         modifier = Modifier.fillMaxSize(),
@@ -98,6 +99,12 @@ fun ShellScreen(
                 )
                 Spacer(modifier = Modifier.height(GraphiteMintSpacing.X3))
                 DisabledLauncher(modifier = Modifier.fillMaxWidth())
+                Spacer(modifier = Modifier.height(GraphiteMintSpacing.X3))
+                GatePrimaryAction(
+                    label = stringResource(R.string.connection_check),
+                    description = stringResource(R.string.connection_check_cd),
+                    onClick = onCheckConnection,
+                )
                 Spacer(modifier = Modifier.height(GraphiteMintSpacing.X3))
                 GateQuietAction(
                     label = stringResource(R.string.trust_details),
