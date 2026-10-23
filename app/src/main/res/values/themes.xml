@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark-only launch theme: graphite ground so the first frame never
+        flashes white. The Compose shell paints the same token. -->
+    <style name="Theme.UniRem" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/surface_base</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>

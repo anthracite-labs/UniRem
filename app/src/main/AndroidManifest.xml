@@ -1,0 +1,21 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Shell-only manifest: no permissions in this story. No RECORD_AUDIO,
+        POST_NOTIFICATIONS, MediaProjection, foreground-service, or
+        local-network (NEARBY_WIFI_DEVICES) entries until their stories land. -->
+
+    <application
+        android:label="@string/app_name"
+        android:theme="@style/Theme.UniRem"
+        android:supportsRtl="true">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+
+</manifest>
