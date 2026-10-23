@@ -63,7 +63,7 @@ fun ShellScreen(
     onShowDetails: () -> Unit = {},
     detailsFocusRequester: FocusRequester? = null,
     sessionOnlyActive: Boolean = false,
-    onCheckConnection: () -> Unit = {},
+    onOpenRemote: () -> Unit = {},
     switcherName: String? = null,
     onOpenSwitcher: () -> Unit = {},
     switcherFocusRequester: FocusRequester? = null,
@@ -122,9 +122,9 @@ fun ShellScreen(
                 DisabledLauncher(modifier = Modifier.fillMaxWidth())
                 Spacer(modifier = Modifier.height(GraphiteMintSpacing.X3))
                 GatePrimaryAction(
-                    label = stringResource(R.string.connection_check),
-                    description = stringResource(R.string.connection_check_cd),
-                    onClick = onCheckConnection,
+                    label = stringResource(R.string.remote_open),
+                    description = stringResource(R.string.remote_open_cd),
+                    onClick = onOpenRemote,
                 )
                 Spacer(modifier = Modifier.height(GraphiteMintSpacing.X3))
                 GateQuietAction(
@@ -157,6 +157,12 @@ fun ShellScreen(
                         style = GraphiteMintType.Body.copy(color = GraphiteMint.InkPrimary),
                     )
                     Spacer(modifier = Modifier.height(GraphiteMintSpacing.X1))
+                    GatePrimaryAction(
+                        label = stringResource(R.string.remote_open),
+                        description = stringResource(R.string.remote_open_cd),
+                        onClick = onOpenRemote,
+                    )
+                    Spacer(modifier = Modifier.height(GraphiteMintSpacing.X3))
                 }
                 BasicText(
                     text = stringResource(R.string.setup_no_tvs),

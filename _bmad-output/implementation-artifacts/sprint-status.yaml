@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 10-23-2026 05:59
-last_updated: 10-23-2026 21:48
+last_updated: 10-23-2026 21:55
 project: UniRem
 project_key: NOKEY
 tracking_system: file-system
@@ -45,7 +45,7 @@ development_status:
   1-7-reconnect-go-offline-honestly-and-recover-identity-changes: review
   1-8-earn-capability-labels-from-the-versioned-matrix: review
   1-9-switch-the-one-paired-tv-without-guessing: review
-  1-10-open-the-remote-and-connect-to-the-selected-tv: backlog
+  1-10-open-the-remote-and-connect-to-the-selected-tv: review
   1-11-put-the-d-pad-in-the-ring-and-tell-the-truth-about-every-tap: backlog
   1-12-add-the-utility-and-function-keys-and-keep-power-off-honest: backlog
   1-13-repeat-d-pad-holds-and-keep-late-evidence-from-rewriting-the: backlog

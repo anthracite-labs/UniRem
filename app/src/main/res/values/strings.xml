@@ -117,8 +117,6 @@
     <string name="switcher_pair_again">Pair again</string>
     <string name="switcher_pair_again_cd">Pair a TV again</string>
 
-    <string name="connection_check">Check connection</string>
-    <string name="connection_check_cd">Check the TV connection</string>
     <string name="connection_paired">Paired</string>
     <string name="connection_reconnecting">Reconnecting…</string>
     <string name="connection_offline">The TV is offline.</string>
@@ -130,6 +128,11 @@
     <string name="connection_not_now_cd">Stop retrying for now</string>
     <string name="connection_repair">Re-pair</string>
     <string name="connection_repair_cd">Pair this TV again</string>
+
+    <string name="remote_open">Open remote</string>
+    <string name="remote_open_cd">Open the TV remote</string>
+    <string name="remote_idle">Idle</string>
+    <string name="remote_offline">Offline</string>
 
     <string name="capability_full_control">Full control — confirms keys</string>
     <string name="capability_best_effort">Best-effort — can\'t confirm commands</string>

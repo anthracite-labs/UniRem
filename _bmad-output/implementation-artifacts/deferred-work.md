@@ -18,3 +18,6 @@
 - source_spec: `C:\Users\KAVEN\Desktop\UniRem\_bmad-output\implementation-artifacts\spec-1-9-switch-the-one-paired-tv-without-guessing.md`
   summary: Bottom sheets move focus in and back but do not trap keyboard focus while open.
   evidence: E11/E14 real but idiom-level — the approved TrustSheet pattern has no trap either; fix belongs to the shared sheet idiom, not this story.
+- source_spec: `C:\Users\KAVEN\Desktop\UniRem\_bmad-output\implementation-artifacts\spec-1-10-open-the-remote-and-connect-to-the-selected-tv.md`
+  summary: Session-only remote whose TV starts answering /api/v2/ after pairing lands on IdentityChanged with a dead Re-pair and never connects.
+  evidence: E9/E5 medium-if-true; unsettleable on JVM — needs an owned-device session-only flow where /api/v2/ answers post-pair to see whether the fresh-identity gate fires, and likely needs an identity-upgrade path beyond this story.
