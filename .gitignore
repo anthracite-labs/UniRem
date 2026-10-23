@@ -50,3 +50,6 @@ Thumbs.db
 
 # Exception: the Spike A sideloadable is published here deliberately.
 !debug/*.apk
+
+# AGENTS.md holds machine-local tool paths; do not commit.
+AGENTS.md
