@@ -1,0 +1,14 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "servers": {
+      "token-savior": {
+        "type": "local",
+        "command": ["token-savior"],
+        "environment": {
+          "TOKEN_SAVIOR_PROFILE": "optimized"
+        }
+      }
+    }
+  }
+}

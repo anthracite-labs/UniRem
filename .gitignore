@@ -2,3 +2,6 @@
 # Regenerated on every install; holds personal values (user name, language).
 # Team-shared config lives in _bmad/config.toml and _bmad/custom/config.toml.
 _bmad/config.user.toml
+
+# Token Savior local cache (per-machine index metadata).
+.token-savior-cache.json
