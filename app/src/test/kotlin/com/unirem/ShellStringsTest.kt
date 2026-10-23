@@ -9,9 +9,10 @@ import kotlin.io.path.isRegularFile
 import kotlin.io.path.readText
 
 /**
- * Guards the shell's static copy: the three strings exist, the version line
- * carries a slot for the build version, and no string claims a connection or
- * command state the shell cannot observe.
+ * Guards the shell's static copy: the three shell strings exist, the version
+ * line carries a slot for the build version, and no shell string claims a
+ * connection or command state the shell cannot observe. Gate copy carries
+ * its own settled wording (pinned by LanGateCopyTest) and is out of scope.
  */
 class ShellStringsTest {
 
@@ -35,8 +36,9 @@ class ShellStringsTest {
 
     @Test
     fun shellStringsMakeNoStateClaims() {
-        val values = Regex("""<string name="[^"]+">([^<]+)</string>""").findAll(xml)
-            .map { it.groupValues[1].lowercase() }.toList()
+        val values = Regex("""<string name="(shell_[^"]+)">([^<]+)</string>""").findAll(xml)
+            .map { it.groupValues[2].lowercase() }.toList()
+        assertTrue("shell strings must exist", values.isNotEmpty())
         for (claim in listOf("connect", "pair", "confirm", "offline", "online", "waiting", "idle", "sent")) {
             assertFalse(
                 "no shell string may claim '$claim'",

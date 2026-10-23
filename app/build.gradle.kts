@@ -44,6 +44,8 @@ dependencies {
     implementation(project(":core"))
     implementation(project(":tv"))
     implementation(project(":cast"))
+    implementation(libs.coroutines.core)
+    implementation(libs.datastore.preferences)
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)
     implementation(libs.compose.foundation)

@@ -1,10 +1,16 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Shell-only manifest: no permissions in this story. No RECORD_AUDIO,
-        POST_NOTIFICATIONS, MediaProjection, foreground-service, or
-        local-network (NEARBY_WIFI_DEVICES) entries until their stories land. -->
+    <!-- Story 1.4 owns exactly three permissions: the API 37+ local-network
+        runtime permission plus the two invisible install-time normal
+        permissions the gate needs on hardware (transport readout and the
+        single process lock). Still no RECORD_AUDIO, POST_NOTIFICATIONS,
+        foreground-service, MediaProjection, or telemetry-adjacent entries. -->
+    <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
 
     <application
+        android:name=".UniRemApp"
         android:label="@string/app_name"
         android:theme="@style/Theme.UniRem"
         android:supportsRtl="true">

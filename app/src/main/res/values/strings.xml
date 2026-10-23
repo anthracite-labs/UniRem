@@ -4,4 +4,27 @@
     <string name="shell_title">UniRem</string>
     <string name="shell_subtitle">A local remote for Samsung TVs.</string>
     <string name="shell_version">Version %1$s</string>
+
+    <string name="gate_card_title">Local network access</string>
+    <string name="gate_card_needed">Allow access to find your TV on this Wi-Fi.</string>
+    <string name="gate_card_ready">Local network access ready</string>
+    <string name="gate_explainer_body">UniRem needs to find your TV on this Wi-Fi. Nothing is sent to the internet.</string>
+    <string name="gate_explainer_continue">Continue</string>
+    <string name="gate_denied_body">UniRem needs local network access to reach your TV.</string>
+    <string name="gate_denied_settings">Open settings</string>
+    <string name="gate_not_now">Not now</string>
+    <string name="gate_readout_not_scanned">Not scanned</string>
+    <string name="gate_net_wifi">Wi-Fi</string>
+    <string name="gate_net_ethernet">Ethernet</string>
+    <string name="gate_net_unknown">Unknown</string>
+    <string name="gate_net_granted">granted</string>
+    <string name="gate_net_denied">denied</string>
+    <string name="gate_net_not_declared">not declared</string>
+    <string name="gate_readout_access">access: %1$s</string>
+    <string name="gate_readout_network">network: %1$s</string>
+    <string name="gate_readout_scan">scan: %1$s</string>
+    <string name="gate_readout_code">code: %1$s</string>
+    <string name="gate_cd_continue">Continue local network setup</string>
+    <string name="gate_cd_settings">Open system settings</string>
+    <string name="gate_cd_dismiss">Dismiss</string>
 </resources>

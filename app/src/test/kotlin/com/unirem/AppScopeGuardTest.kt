@@ -74,10 +74,19 @@ class AppScopeGuardTest {
     }
 
     @Test
-    fun manifestIsShellOnly() {
+    fun manifestDeclaresExactlyGatePermissions() {
         val manifest = appMain.resolve("AndroidManifest.xml").readText()
             .replace(Regex("<!--.*?-->", RegexOption.DOT_MATCHES_ALL), "")
-        assertFalse("shell requests no permissions", manifest.contains("<uses-permission"))
+        val declared = Regex("""<uses-permission[^>]*android:name="([^"]+)"""")
+            .findAll(manifest).map { it.groupValues[1] }.toSet()
+        assertTrue(
+            "manifest must declare exactly the gate permissions, found $declared",
+            declared == setOf(
+                "android.permission.ACCESS_LOCAL_NETWORK",
+                "android.permission.ACCESS_NETWORK_STATE",
+                "android.permission.CHANGE_WIFI_MULTICAST_STATE",
+            ),
+        )
         for (permission in listOf(
             "RECORD_AUDIO", "POST_NOTIFICATIONS", "FOREGROUND_SERVICE",
             "MediaProjection", "NEARBY_WIFI_DEVICES",
@@ -102,6 +111,26 @@ class AppScopeGuardTest {
         assertTrue("signing owner must be TBD", identity.contains("TBD"))
     }
 
+    @Test
+    fun multicastLockLivesOnlyInGate() {
+        val hits = moduleSources(listOf("app/src/main", "tv/src/main", "cast/src/main"))
+            .filter { (_, text) -> text.contains("MulticastLock") || text.contains("WifiManager") }
+            .map { (path, _) -> path.toString() }
+        assertTrue("lock/WifiManager hits must exist in the gate", hits.isNotEmpty())
+        val outside = hits.filter { !it.contains("gate") || it.contains("spike") }
+        assertTrue("lock/WifiManager outside the gate file: $outside", outside.isEmpty())
+    }
+
+    @Test
+    fun modulesNeverRequestPermissions() {
+        val hits = moduleSources(listOf("tv/src/main", "cast/src/main", "core/src/main"))
+            .filter { (_, text) ->
+                text.contains("requestPermissions") || text.contains("RequestPermission")
+            }
+            .map { (path, _) -> path.toString() }
+        assertTrue("permission requests outside the gate: $hits", hits.isEmpty())
+    }
+
     companion object {
         private fun findRepoRoot(): Path {
             var dir: Path = Paths.get(System.getProperty("user.dir")).toAbsolutePath()
@@ -122,6 +151,22 @@ class AppScopeGuardTest {
             return Files.walk(root).use { stream ->
                 stream.filter { Files.isRegularFile(it) && it.toString().endsWith(".kt") }
                     .map { it to it.readText() }.toList()
+            }
+        }
+
+        private fun moduleSources(roots: List<String>): List<Pair<Path, String>> {
+            var dir: Path = Paths.get(System.getProperty("user.dir")).toAbsolutePath()
+            while (true) {
+                if (dir.resolve("settings.gradle.kts").isRegularFile()) break
+                dir = dir.parent ?: error("settings.gradle.kts not found above user.dir")
+            }
+            return roots.flatMap { root ->
+                val rootDir = dir.resolve(root)
+                check(Files.isDirectory(rootDir)) { "source root missing, guard would be vacuous: $rootDir" }
+                Files.walk(rootDir).use { stream ->
+                    stream.filter { Files.isRegularFile(it) && it.toString().endsWith(".kt") }
+                        .map { it to it.readText() }.toList()
+                }
             }
         }
     }

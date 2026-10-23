@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
@@ -17,17 +18,32 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import com.unirem.core.api.LanAccess
+import com.unirem.gate.DiagnosticReadout
+import com.unirem.gate.ExplainerSheet
+import com.unirem.gate.LanGateSnapshot
+import com.unirem.gate.PermissionCard
 import com.unirem.ui.graphitemint.GraphiteMint
 import com.unirem.ui.graphitemint.GraphiteMintSpacing
 import com.unirem.ui.graphitemint.GraphiteMintType
 
 /**
  * Foundation shell: a static screen that names UniRem as a local remote for
- * Samsung TVs and shows the build version. No actions, no state claims, no
- * "connected" language. Command surfaces arrive with their stories.
+ * Samsung TVs and shows the build version, the single local-network
+ * permission card, and the quiet diagnostic readout. No actions, no state
+ * claims, no "connected" language. Command surfaces arrive with their
+ * stories.
  */
 @Composable
-fun ShellScreen(versionName: String) {
+fun ShellScreen(
+    versionName: String,
+    snapshot: LanGateSnapshot,
+    explainerVisible: Boolean,
+    onGrant: () -> Unit,
+    onExplainerContinue: () -> Unit,
+    onExplainerDismiss: () -> Unit,
+    onOpenSettings: () -> Unit,
+) {
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.TopCenter,
@@ -53,6 +69,23 @@ fun ShellScreen(versionName: String) {
             BasicText(
                 text = stringResource(R.string.shell_version, versionName),
                 style = GraphiteMintType.BodySmall.copy(color = GraphiteMint.InkSecondary),
+            )
+            Spacer(modifier = Modifier.height(GraphiteMintSpacing.X4))
+            PermissionCard(
+                state = snapshot,
+                onGrant = onGrant,
+                onOpenSettings = onOpenSettings,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(modifier = Modifier.height(GraphiteMintSpacing.X3))
+            DiagnosticReadout(snapshot = snapshot)
+        }
+        if (explainerVisible) {
+            ExplainerSheet(
+                denied = snapshot.access == LanAccess.Denied,
+                onContinue = onExplainerContinue,
+                onNotNow = onExplainerDismiss,
+                onOpenSettings = onOpenSettings,
             )
         }
     }
