@@ -24,4 +24,7 @@ kotlin {
 
 dependencies {
     implementation(project(":core"))
+    implementation(libs.okhttp)
+    implementation(libs.coroutines.core)
+    testImplementation(libs.junit)
 }

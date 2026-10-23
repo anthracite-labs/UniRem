@@ -21,18 +21,20 @@ import androidx.compose.ui.res.stringResource
 import com.unirem.core.api.LanAccess
 import com.unirem.gate.DiagnosticReadout
 import com.unirem.gate.ExplainerSheet
+import com.unirem.gate.GatePrimaryAction
 import com.unirem.gate.LanGateSnapshot
 import com.unirem.gate.PermissionCard
+import com.unirem.setup.DisabledLauncher
 import com.unirem.ui.graphitemint.GraphiteMint
 import com.unirem.ui.graphitemint.GraphiteMintSpacing
 import com.unirem.ui.graphitemint.GraphiteMintType
 
 /**
- * Foundation shell: a static screen that names UniRem as a local remote for
- * Samsung TVs and shows the build version, the single local-network
- * permission card, and the quiet diagnostic readout. No actions, no state
- * claims, no "connected" language. Command surfaces arrive with their
- * stories.
+ * Foundation shell with the Story 1.5 setup entry. With no stored TV the
+ * shell reads "No TVs yet." plus the quiet code readout and a disabled
+ * six-slot launcher; "Add your first TV" starts exactly one scan. With a
+ * stored TV the setup entry is replaced by the single-TV summary; this story
+ * never replaces or forgets a stored TV.
  */
 @Composable
 fun ShellScreen(
@@ -43,6 +45,9 @@ fun ShellScreen(
     onExplainerContinue: () -> Unit,
     onExplainerDismiss: () -> Unit,
     onOpenSettings: () -> Unit,
+    hasPairedTv: Boolean = false,
+    tvSummary: String? = null,
+    onAddTv: () -> Unit = {},
 ) {
     Box(
         modifier = Modifier.fillMaxSize(),
@@ -78,6 +83,32 @@ fun ShellScreen(
                 modifier = Modifier.fillMaxWidth(),
             )
             Spacer(modifier = Modifier.height(GraphiteMintSpacing.X3))
+            if (hasPairedTv) {
+                BasicText(
+                    text = stringResource(R.string.setup_shell_summary, tvSummary ?: ""),
+                    style = GraphiteMintType.Body.copy(color = GraphiteMint.InkPrimary),
+                )
+                Spacer(modifier = Modifier.height(GraphiteMintSpacing.X3))
+            } else {
+                BasicText(
+                    text = stringResource(R.string.setup_no_tvs),
+                    style = GraphiteMintType.Body.copy(color = GraphiteMint.InkPrimary),
+                )
+                Spacer(modifier = Modifier.height(GraphiteMintSpacing.X1))
+                BasicText(
+                    text = stringResource(R.string.setup_intro),
+                    style = GraphiteMintType.BodySmall.copy(color = GraphiteMint.InkSecondary),
+                )
+                Spacer(modifier = Modifier.height(GraphiteMintSpacing.X3))
+                DisabledLauncher(modifier = Modifier.fillMaxWidth())
+                Spacer(modifier = Modifier.height(GraphiteMintSpacing.X3))
+                GatePrimaryAction(
+                    label = stringResource(R.string.setup_add_first),
+                    description = stringResource(R.string.setup_add_first_cd),
+                    onClick = onAddTv,
+                )
+                Spacer(modifier = Modifier.height(GraphiteMintSpacing.X3))
+            }
             DiagnosticReadout(snapshot = snapshot)
         }
         if (explainerVisible) {

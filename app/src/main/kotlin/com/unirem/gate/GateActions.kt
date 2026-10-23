@@ -29,12 +29,13 @@ internal fun GatePrimaryAction(
     description: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
 ) {
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(GraphiteMintRadii.Md))
             .background(GraphiteMint.Accent)
-            .clickable(role = Role.Button, onClick = onClick)
+            .clickable(role = Role.Button, onClick = onClick, enabled = enabled)
             .semantics(mergeDescendants = true) { contentDescription = "$label $description" }
             .heightIn(min = 48.dp)
             .padding(
@@ -59,10 +60,11 @@ internal fun GateQuietAction(
     description: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
 ) {
     Box(
         modifier = modifier
-            .clickable(role = Role.Button, onClick = onClick)
+            .clickable(role = Role.Button, onClick = onClick, enabled = enabled)
             .semantics(mergeDescendants = true) { contentDescription = "$label $description" }
             .heightIn(min = 48.dp)
             .padding(

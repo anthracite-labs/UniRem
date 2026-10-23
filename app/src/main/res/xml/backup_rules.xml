@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Pairing material is backup-excluded: the Keystore-backed ciphertext file
+     must never leave the device via backup. The Room TV-record database is a
+     local cache and is excluded too so a restore cannot resurrect trust.
+     Journal companions are excluded alongside the database file. -->
+<full-backup-content>
+    <exclude domain="sharedpref" path="unirem_pairing.xml" />
+    <exclude domain="database" path="unirem-tvs" />
+    <exclude domain="database" path="unirem-tvs-wal" />
+    <exclude domain="database" path="unirem-tvs-shm" />
+    <exclude domain="database" path="unirem-tvs-journal" />
+</full-backup-content>

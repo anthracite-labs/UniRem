@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 10-23-2026 05:59
-last_updated: 10-23-2026 16:13
+last_updated: 10-23-2026 16:25
 project: UniRem
 project_key: NOKEY
 tracking_system: file-system
@@ -40,7 +40,7 @@ development_status:
   1-2-prove-key-delivery-and-command-evidence-spike-a: review
   1-3-ship-an-installable-graphite-mint-shell-with-confirmed-ident: review
   1-4-gate-local-network-access-and-own-the-permission-state: review
-  1-5-find-a-tv-pair-it-and-persist-trust: backlog
+  1-5-find-a-tv-pair-it-and-persist-trust: review
   1-6-inspect-and-forget-a-trusted-tv: backlog
   1-7-reconnect-go-offline-honestly-and-recover-identity-changes: backlog
   1-8-earn-capability-labels-from-the-versioned-matrix: backlog

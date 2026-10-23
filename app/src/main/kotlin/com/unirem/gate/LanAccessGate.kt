@@ -170,6 +170,12 @@ class LanAccessGate(
     fun <T> withMulticastLock(block: () -> T): T =
         guardedRun(::platformAcquire, ::platformRelease, block)
 
+    /**
+     * Alias scanners use so product callers never spell the platform handle.
+     * Same single held scope as [withMulticastLock], same release semantics.
+     */
+    fun <T> underHeldScope(block: () -> T): T = withMulticastLock(block)
+
     /** Suspend twin of [withMulticastLock]; cancellation still releases. */
     suspend fun <T> withMulticastLockSuspend(block: suspend () -> T): T =
         guardedRunSuspend(::platformAcquire, ::platformRelease, block)
