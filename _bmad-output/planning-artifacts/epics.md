@@ -499,4 +499,598 @@ The project owner can install a signed build on the pilot phones and demonstrate
 
 **Natural dependencies:** Epic 1 is standalone. Epic 2 builds on Epic 1. Epics 3, 4, and 5 build on Epic 1; Epic 4 uses the Epic 3 text path for dictation. Epic 6 builds on Epic 5's session coordinator. Epic 7 verifies all prior epics and adds no new feature.
 
-<!-- Story design follows in Step 3. -->
+## Epic 1: Pair and press
+
+The user can find a Samsung TV on the local network, complete the TV's Allow prompt, trust the connection, and use a working one-TV remote — with every key and power-off action honest about what the phone observed.
+
+**FRs covered:** FR1-FR5, FR8-FR13, FR24, FR37-FR38, FR40-FR41.
+
+### Story 1.1: Prove the pairing and identity path (Spike A)
+
+As the project owner,
+I want to prove Samsung discovery, pairing, stable identity, token persistence, and SPKI pinning on the pilot TVs before the app foundation is built,
+So that Epic 1 commits to a trust model the hardware actually supports and the pilot does not fail at the first screen.
+
+**FRs:** FR1-FR5, FR8, FR37-FR38, FR40-FR41 (evidence only; no production implementation).
+
+**Out of scope:** key delivery, repeat, text, pointer, voice, cast, mirror, multi-TV UI, Settings.
+
+**Acceptance Criteria:**
+
+**AC1 — Test set and harness**
+**Given** at least three Tizen 2016+ TVs, including one recent set, and a physical Android test phone on the same LAN,
+**When** the Spike A harness runs,
+**Then** it records model, year, region, exact firmware string, and network type for each TV,
+**And** it can attempt discovery, manual-IP entry, and a WSS connection without depending on the production app,
+**And** if the required test set is unavailable, the story is blocked and the gate is not marked passed.
+
+**AC2 — Discovery and manual IP**
+**Given** the local-network gate is granted,
+**When** discovery runs,
+**Then** the harness sends SSDP M-SEARCH to `239.255.255.250:1900` under a held multicast lock and fetches `GET <tv>:8001/api/v2/` for name, model, Tizen version, `TokenAuthSupport`, and Wi-Fi MAC,
+**And** when discovery is empty or blocked, manual IP entry is offered and attempts the same identity read,
+**And** a manual-IP target with no resolvable stable identity is marked session-only and receives no durable record or Keystore alias,
+**And** when the gate is denied, both discovery and manual IP are blocked and the result is recorded as `LanDenied`, not "TV didn't answer."
+
+**AC3 — First pairing and Allow/Deny**
+**Given** an unpaired TV,
+**When** the harness opens the first WSS connection without a token,
+**Then** the TV shows its Allow/Deny prompt, and Allow yields `ms.channel.connect` with a token on token-auth models,
+**And** Deny or timeout yields `ms.channel.unauthorized` or a socket close, with no token or pin persisted,
+**And** the harness records whether the Allow prompt can be answered without a physical remote; if it cannot, the required fallback is documented and the pilot premise is flagged.
+
+**AC4 — Token persistence and re-prompt**
+**Given** a successful Allow on a token-auth model,
+**When** the harness reconnects after a process restart,
+**Then** the token skips the prompt on models that persist it,
+**And** any model that re-prompts is recorded per firmware, with the visible re-pair path exercised,
+**And** no token, pin, or full MAC appears in logs.
+
+**AC5 — SPKI pin capture and validation**
+**Given** a successful pairing,
+**When** the leaf SPKI is captured and stored,
+**Then** the pin and token are keyed by stable identity, stored in Keystore-backed encrypted storage, and excluded from backup,
+**And** every later connect validates the pinned leaf SPKI before attaching the token,
+**And** a changed or mismatched pin fails closed into a visible re-pair flow, with no token sent,
+**And** the harness confirms there is no trust-all `TrustManager`, no hostname-check suppression outside the pinned client, and no WSS-to-WS fallback.
+
+**AC6 — Stable identity and two TVs**
+**Given** two TVs, preferably the same model,
+**When** both are paired,
+**Then** stable identity follows device ID first and byte-exact MAC second, with one normalization rule applied identically everywhere,
+**And** `TvId` is the hash of that identity; the two records are distinct; identity is not derived from IP or the current connectivity path,
+**And** if no same-model pair is available, the gap is recorded and a synthetic identical-device-ID test is run; the gate cannot be fully passed until the real collision is resolved.
+
+**AC7 — Reconnect and failure states**
+**Given** a paired TV,
+**When** the socket closes or the token is rejected,
+**Then** reconnect uses visible backoff, token rejection/expiry surfaces "Pairing is required for this TV." with a re-pair action, and socket close surfaces the offline state,
+**And** the harness confirms no command is silently queued or retried.
+
+**AC8 — Security inspection**
+**Given** the completed harness,
+**When** storage, logs, and TLS configuration are inspected,
+**Then** no token, pin, SPKI, full MAC, or pairing payload is logged or backed up,
+**And** the security checks from AC5 are evidenced, not asserted.
+
+**AC9 — Spike report and matrix rows**
+**Given** all runs are complete,
+**When** the spike is closed,
+**Then** a report is committed at `_bmad-output/implementation-artifacts/spike-a-pairing.md` with one matrix row per TV/firmware/network, pass/fail/blocked results, exact firmware strings, re-prompt and pin-stability results, the no-remote Allow result, and any identity-collision gap,
+**And** the report states whether the gate passes, what remains blocked, and whether Epic 1 foundation work may start,
+**And** any hard failure produces a re-plan recommendation rather than a "mostly passed" note.
+
+**AC10 — Scope discipline**
+**Given** the spike,
+**Then** it ships only a throwaway harness and the report — no production UI, no key delivery, no multi-TV switcher, no Settings, no voice, cast, or mirror code.
+
+### Story 1.2: Prove key delivery and command evidence (Spike A)
+
+As the project owner,
+I want to prove the MVP key path, repeat behavior, and command-evidence model on the pilot TVs,
+So that Epic 1 can show honest Submitted/Unconfirmed/Observed states and choose a defensible timeout instead of inventing one.
+
+**FRs:** FR9-FR13, FR24 (evidence only; no production implementation).
+
+**Out of scope:** production remote UI, multi-TV, text, pointer, voice, cast, mirror, Settings.
+
+**Acceptance Criteria:**
+
+**AC1 — Paired test setup**
+**Given** the TVs paired in Story 1.1 and a physical Android test phone on the same LAN,
+**When** the key-delivery harness connects over the authenticated WSS channel,
+**Then** it records model, exact firmware, network type, and whether the TV is on and reachable,
+**And** it can send raw protocol frames independently of the production app.
+
+**AC2 — MVP key set**
+**Given** an authenticated connection,
+**When** the harness sends each MVP key — D-pad up/down/left/right, OK, Back, Home, Apps, Search, volume up/down/mute, play/pause, and power off —
+**Then** each gesture produces exactly one `ms.remote.control` command with the correct `DataOfCmd`,
+**And** the on-TV effect is recorded per key,
+**And** no diagonal key or swipe navigation is used.
+
+**AC3 — Evidence per key**
+**Given** a key command,
+**When** the TV responds or stays silent,
+**Then** the harness records the evidence source for that key: machine event, state probe, or user confirmation only,
+**And** a successful socket write is never recorded as a TV action,
+**And** the matrix captures which keys are observably confirmed per model/firmware.
+
+**AC4 — Latency and timeout**
+**Given** repeated key presses on each test TV,
+**When** the harness measures submit-to-evidence and submit-to-timeout,
+**Then** it reports median and tail latency per key or key group,
+**And** it states whether the 3s default is supported or which per-capability timeout should replace it,
+**And** the recommendation is based on recorded runs, not a single sample.
+
+**AC5 — Repeat behavior**
+**Given** a held direction key,
+**When** the hold passes 500ms,
+**Then** the harness repeats at approximately 80ms intervals until release,
+**And** release sends the key-up/Release frame,
+**And** exactly one repeat engine is active; no other path synthesizes repeats,
+**And** the TV effect and any dropped/reordered frames are recorded.
+
+**AC6 — Late evidence and gesture generation**
+**Given** two presses in sequence,
+**When** evidence for the older press arrives after a newer press has started,
+**Then** the older evidence is ignored and the newer gesture keeps its own state,
+**And** an open gesture resolves to Idle when the socket closes,
+**And** no stale evidence can turn a newer press green.
+
+**AC7 — Socket close and offline behavior**
+**Given** an open socket,
+**When** the socket closes mid-press or between presses,
+**Then** the repeat stops, the open gesture resolves to Idle, and further keys are disabled,
+**And** no command is silently queued or retried on reconnect,
+**And** the harness records whether a best-effort Release frame is possible without a live socket.
+
+**AC8 — Power-off honesty**
+**Given** a TV that is on,
+**When** the harness sends power off,
+**Then** it sends a distinct power key, not a toggle,
+**And** it records whether the TV reports off, asleep, or unknown afterward,
+**And** an unobserved power-off remains unconfirmed rather than being marked successful,
+**And** no confirmation sheet is used.
+
+**AC9 — Unsupported-key behavior**
+**Given** a model that does not report a key,
+**When** the user presses that key,
+**Then** the key remains usable and the limitation is recorded for the one-time chip and TV record,
+**And** the harness does not label the key "failed" or hide it without explanation.
+
+**AC10 — Spike report and matrix rows**
+**Given** all runs are complete,
+**When** the spike is closed,
+**Then** a report is committed at `_bmad-output/implementation-artifacts/spike-a-keys.md` with one matrix row per TV/firmware/network, per-key evidence, latency, repeat behavior, power-off observation, and unsupported-key results,
+**And** the report states whether the key path passes, what remains blocked, and the recommended timeout values,
+**And** any hard failure produces a re-plan recommendation rather than a "mostly passed" note.
+
+**AC11 — Scope discipline**
+**Given** the spike,
+**Then** it ships only a throwaway harness and the report — no production remote UI, no key-state design work beyond the evidence model, and no text, pointer, voice, cast, or mirror code.
+
+### Story 1.3: Ship an installable Graphite Mint shell with confirmed identity
+
+As the pilot user,
+I want to install UniRem and see the Graphite Mint app shell on my phone,
+So that I can confirm the app runs before the TV setup flow is added.
+
+**FRs:** Enabling story; UX-DR1-UX-DR4, NFR1, NFR10-NFR13, NFR18.
+
+**Out of scope:** discovery, LAN gate, no-TV CTA, pairing, remote, launcher, voice, cast, mirror, Settings.
+
+**Acceptance Criteria:**
+
+**AC1 — Four-module scaffold**
+**Given** a clean checkout,
+**When** `./gradlew build lint :core:test` runs,
+**Then** `settings.gradle.kts`, the version catalog, and `:app`, `:core`, `:tv`, `:cast` exist,
+**And** the module graph is exactly `:app → :tv, :cast, :core`; `:tv → :core`; `:cast → :core`,
+**And** `:core` has no Android dependency and no other project dependencies exist,
+**And** the build, lint, and `:core` tests pass.
+
+**AC2 — Pinned toolchain and CI**
+**Given** the repository,
+**Then** Gradle 9.5.0, AGP 9.3.1, JDK 17, Kotlin 2.4.21, compileSdk 37, targetSdk 36, and minSdk 26 are pinned,
+**And** the version catalog carries the architecture stack pins without adding unused libraries to modules,
+**And** a GitHub Actions workflow runs `./gradlew build lint :core:test` on push and pull request,
+**And** CI does not require a live TV or instrumentation run.
+
+**AC3 — Confirmed app identity**
+**Given** the scaffold,
+**When** the project owner confirms the package identity,
+**Then** the application ID and package base are `com.unirem`,
+**And** the confirmation, signing owner, and "do not change after release" note are recorded in `docs/app-identity.md`,
+**And** no signed build is produced before that confirmation,
+**And** the manifest contains only the permissions the shell needs; it has no `RECORD_AUDIO`, `POST_NOTIFICATIONS`, MediaProjection, or foreground-service declarations.
+
+**AC4 — Installable shell**
+**Given** a debug build,
+**When** it is installed on an API 26 device and an API 36/37 test device,
+**Then** it launches without a crash and shows a simple shell using the Graphite Mint theme,
+**And** the screen identifies UniRem as a local remote for Samsung TVs and shows the build version,
+**And** there is no fake setup action, no dead button, and no claim that a TV is connected.
+
+**AC5 — Graphite Mint tokens**
+**Given** the shell,
+**Then** the dark-only palette uses the specified surface, ink, accent, ring, status, banner, focus, and scrim tokens,
+**And** dynamic color and a light theme are disabled,
+**And** tonal depth uses `surface-base → surface-raised → surface-key` plus 1dp hairlines,
+**And** there are no drop shadows, gradients, blur, or glassmorphism; the ring glow and 2dp health halo remain the only glows.
+
+**AC6 — Typography, spacing, and sizing**
+**Given** the shell,
+**Then** the typography scale uses the specified display/title/headline/body/body-small/label/micro/button/state/key/code sizes and weights in `sp`,
+**And** uppercase is used only for `micro`, critical labels do not truncate, and tabular numerals are available where specified,
+**And** spacing uses the 4dp scale, 20dp screen gutter, 24dp section spacing, the 8/14/18/24/full radius tokens, and a 480dp maximum content width,
+**And** the portrait surface supports 360–480dp and every interactive target is at least 48dp.
+
+**AC7 — Shell scope discipline**
+**Given** this story,
+**Then** it adds no discovery, LAN gate, manual IP, pairing, remote keys, launcher, voice, cast, mirror, Settings, telemetry, or network client code,
+**And** the shell is a foundation build, not a simulated product surface.
+
+### Story 1.4: Gate local-network access and own the permission state
+
+As the pilot user,
+I want UniRem to ask for local-network access only when I start setup and to explain a denial,
+So that I can grant or refuse knowingly and never see a silent empty scan.
+
+**FRs:** FR37, FR40; UX-DR24, UX-DR36; NFR4-NFR6, NFR16; AD-8, AD-11.
+
+**Out of scope:** SSDP discovery, `/api/v2/` identity read, manual-IP form, pairing, remote, Settings, voice, cast, mirror.
+
+**Acceptance Criteria:**
+
+**AC1 — One gate, one owner**
+**Given** the app,
+**Then** a single app-level `LanAccessGate` owns the local-network permission, the process-wide `MulticastLock`, the isolation diagnostic, and the manual-IP route,
+**And** `:core` defines `LanAccess` with exactly `Granted`, `Denied`, and `NotDeclared`,
+**And** `:tv` and `:cast` consult the gate before any network attempt and map denial to `TvFailure.LanDenied` and `CastFailure.LanDenied`,
+**And** neither module requests a permission or launches permission UI.
+
+**AC2 — Permission explainer**
+**Given** the user starts setup,
+**When** the gate needs local-network access,
+**Then** a bottom sheet explains in one sentence why the app needs it, what it will do, and what happens if the user says no,
+**And** Continue triggers the system prompt; "Not now" leaves the feature unstarted,
+**And** a denied state offers "Open settings" and a plain explanation,
+**And** there is no permission wall on first launch and no repeated system prompt after a decision.
+
+**AC3 — API 36 and API 37 behavior**
+**Given** the targetSdk is 36 and the local-network permission is enforced for apps targeting API 37+,
+**Then** the manifest declares the local-network permission and the gate remains the only requester,
+**And** on an API 37 test device the runtime permission is requested and mapped to `Granted` or `Denied`,
+**And** on API 36 the gate reports the platform-appropriate state without showing a permission wall,
+**And** no discovery or manual-IP path bypasses the gate on either version.
+
+**AC4 — Denied access blocks both paths**
+**Given** the gate is `Denied`,
+**When** the user attempts discovery or manual IP,
+**Then** both are blocked identically and the result is `LanDenied`,
+**And** the UI shows the single gate explainer, not "TV didn't answer,"
+**And** no scan, socket, or fallback attempt is made.
+
+**AC5 — Multicast lock lifecycle**
+**Given** a scoped network operation,
+**When** the gate starts and finishes it,
+**Then** exactly one process-wide `MulticastLock` is held for the operation and released afterward,
+**And** no second lock is acquired by another module or by jUPnP,
+**And** a failure or cancellation still releases the lock.
+
+**AC6 — Isolation diagnostic**
+**Given** the gate is denied, or a scan is empty while access is granted,
+**Then** the app exposes a quiet diagnostic readout with the network state, scan result, and the relevant diagnostic code,
+**And** the readout distinguishes permission denial from network isolation and from "no TVs responded,"
+**And** the copy is diagnostic, not a marketing explanation.
+
+**AC7 — Visible permission card**
+**Given** the shell,
+**Then** a "Local network access" card shows the current state and offers the appropriate action: grant, open settings, or explain that access is ready,
+**And** the card never claims a TV is connected,
+**And** it is the only entry point for permission management in Epic 1; full Settings remains Epic 2.
+
+**AC8 — Testability**
+**Given** the gate and its state mapping,
+**Then** JVM tests cover `Granted`, `Denied`, and `NotDeclared` transitions and the `TvFailure`/`CastFailure` mappings,
+**And** the permission prompt and multicast lock lifecycle are verified on the API 36 and API 37 test devices,
+**And** no test requires a live TV or a cloud service.
+
+**AC9 — Scope discipline**
+**Given** this story,
+**Then** it adds no SSDP, `/api/v2/`, pairing, manual-IP form, remote keys, launcher, voice, cast, mirror, Settings, telemetry, or cloud fallback.
+
+### Story 1.5: Find a TV, pair it, and persist trust
+
+As the pilot user,
+I want to find my Samsung TV, confirm it is mine, and answer the TV's Allow prompt,
+So that UniRem remembers the TV and I do not have to pair it again every time.
+
+**FRs:** FR1-FR4, FR5 (pin capture only; later validation in Story 1.7), FR37-FR38, FR40; UX-DR14, UX-DR21, UX-DR25, UX-DR35 (pairing subset), UX-DR36; NFR4-NFR6, NFR12, NFR16; AD-7, AD-8, AD-11.
+
+**Out of scope:** reconnect/backoff, token rejection, identity-changed re-pair, trust sheet/SPKI display, Forget, multi-TV switcher, remote keys, matrix labels, text, pointer, voice, cast, mirror, wake, Settings.
+
+**Acceptance Criteria:**
+
+**AC1 — No-TV setup shell**
+**Given** the app has no stored TV and the local-network gate is granted,
+**When** the setup shell opens,
+**Then** it shows "No TVs yet." / "UniRem controls Samsung TVs on your Wi-Fi. Nothing is sent to the internet." / "Add your first TV,"
+**And** it shows a quiet `code` diagnostic readout with the phone's network type, scan result ("Not scanned"), and a diagnostic code when one exists; it is not a marketing page,
+**And** the six-slot launcher is visible in order Text, Voice, Pad, Cast, Mirror, Wake, disabled with a dashed hairline, `ink-disabled`, and a lock mark; no slot starts a feature,
+**And** the launcher uses the custom line glyphs, not Material icons, emoji, or text-as-icon,
+**And** "Add your first TV" opens Add TV and starts exactly one scan; there is no auto-scan loop,
+**And** when a TV is already stored, the setup entry is not shown; the shell shows the paired TV summary from AC9 instead.
+
+**AC2 — Discovery and identity read**
+**Given** the local-network gate is granted and the user opens Add TV,
+**When** the scan starts,
+**Then** it sends SSDP M-SEARCH to `239.255.255.250:1900` using the search target proven in Spike A, under the gate's held multicast lock,
+**And** it parses each response's `Location`, rejects non-private hosts, and fetches `GET http://<ip>:8001/api/v2/` for name, model, Tizen/firmware, `TokenAuthSupport`, and `wifiMac`,
+**And** every request, including redirects, passes the single `:core` `PrivatePeer` predicate; no public, ULA, or non-private destination is contacted,
+**And** the firmware string is stored byte-exact and never normalized,
+**And** results appear as found under "Scanning for TVs…" with no spinner,
+**And** manual IP is offered in the scanning, empty, and results states,
+**And** the scan runs once on open, offers "Scan again" afterward, stops when the screen leaves, and releases the multicast lock,
+**And** a failed `/api/v2/` result is skipped with a diagnostic record; one bad TV does not crash or stop the scan.
+
+**AC3 — Empty, denied, and isolation states**
+**Given** the scan ends with no results,
+**Then** the screen shows "No TVs found. Check that your phone and TV are on the same Wi-Fi." / "Enter IP address" / "Scan again,"
+**And** a Details link explains client isolation in plain language; it does not fall back silently to a stored TV,
+**And** when the gate is denied, the screen shows "UniRem needs local network access to reach your TV." / "Open settings" / "Not now,"
+**And** no scan or manual-IP request is made while denied, and the result is not presented as "TV didn't answer,"
+**And** the Add TV and Pairing surfaces use the topbar pattern: back plus a static title, right side empty.
+
+**AC4 — Manual IP and session-only targets**
+**Given** the user chooses "Enter IP address,"
+**When** they enter an IPv4 or IPv6 literal,
+**Then** whitespace is trimmed, DNS names are rejected, and invalid input shows an inline error without any request,
+**And** the address must pass the same `PrivatePeer` predicate; public addresses are rejected before a socket is opened,
+**And** a valid address fetches `/api/v2/` and shows the same pairing card as discovery,
+**And** when the address resolves to an already discovered TV, it maps to the same `TvId` and no duplicate card or record is created,
+**And** when no device ID and no MAC resolve, the card is labeled "Session only — this TV won't be saved," pairing may proceed with an in-memory token/pin, and no Room record or Keystore alias is created,
+**And** a failed manual-IP read shows "The TV didn't answer. Check the IP and try again." with "Try again" / "Cancel."
+
+**AC5 — Pairing card and explicit choice**
+**Given** a discovered or manually entered TV,
+**Then** its card shows the name, model, Tizen version, masked MAC, and the first-time note "First time connecting — verify it's yours,"
+**And** a discovered card says "same Wi-Fi as this phone"; a manual-IP card says "Added by IP address" instead of claiming a shared Wi-Fi,
+**And** a missing field is shown as "Not reported," never invented, and the masked MAC reveals at most the last two octets,
+**And** the primary action is "This is my TV — connect"; the secondary "That's not my TV" is always visible,
+**And** no card auto-pairs, auto-connects, or appears selected by default,
+**And** "That's not my TV" removes the card from the current results and stores nothing; a later scan may show it again,
+**And** the card never shows a full MAC, token, SPKI, or capability claim.
+
+**AC6 — Pairing prompt and no-remote path**
+**Given** the user taps "This is my TV — connect,"
+**When** the first WSS connection opens without a token to `wss://<ip>:8002/api/v2/channels/samsung.remote.control?name=<URL-encoded base64(appName)>`,
+**Then** the Pairing surface shows "Press Allow on your TV." / "A prompt is on your TV screen right now."
+**And** the no-remote path is always visible: "No remote? On many Samsung TVs, the button under the logo can select Allow. Press it once, then press and hold."
+**And** the surface includes a simple line diagram of the button under the Samsung logo and says "If your TV's button can't select Allow, you'll need the remote."
+**And** the app never promises remote-free pairing, never tries to press Allow itself, and shows no spinner or silent retry,
+**And** the scoped client accepts the TV's self-signed certificate only for this first connection, captures the leaf SPKI, and installs no global trust manager or hostname-check suppression,
+**And** there is no fallback from WSS 8002 to WS 8001.
+
+**AC7 — Allow, deny, timeout, and persistence**
+**Given** the pairing connection is open,
+**When** the TV allows the client,
+**Then** `ms.channel.connect` yields the token on token-auth models; the app stores the token with the captured leaf SPKI pin, or stores the pin only when the TV reports `TokenAuthSupport=false`,
+**And** if `TokenAuthSupport=true` but no token arrives, pairing fails with no durable record,
+**And** the TV record is keyed by the stable identity from `/api/v2/`, never by IP alone,
+**And** on deny, the app shows "The TV said no." / "You can try again from the TV's Allow prompt," stores no token or pin, and does not auto-retry,
+**And** on timeout or close without a token, the app shows "The TV didn't answer." / "Keep the Allow prompt open and try again." / "Retry" / "Not now," keeps the button diagram visible, and stores no token or pin,
+**And** "Retry" starts a new attempt only on user action; "Not now" returns to the card/results with nothing stored,
+**And** the pairing socket closes after success; no remote session is opened and the app does not claim "Connected."
+
+**AC8 — Storage, backup exclusion, and logging**
+**Given** a successful pairing with a resolved identity,
+**Then** Room stores the TV record: `tvId`, stable identity, name, model, exact firmware, full Wi-Fi MAC and its provenance, `NetworkType`, reached interface, Keystore alias, and paired timestamp,
+**And** `NetworkType` comes from TV evidence when reported, otherwise `Unknown`; it is never inferred from the phone's current link,
+**And** the full MAC is stored for wake only and is never displayed,
+**And** the token and leaf SPKI pin live in Keystore-backed encrypted storage under a per-TV alias; Room stores the alias, never the token or pin,
+**And** pairing material is excluded from Android Auto Backup and device transfer,
+**And** the `PairingStore` port is declared by `:tv` and implemented in `:app`; `:tv` never reads Room or Keystore directly,
+**And** `RedactedLog` is the only logger; token, pin, SPKI, full MAC, and pairing payloads never appear in logs, and no `println` or direct `Log` call exists outside the sink.
+
+**AC9 — Paired state, identity, and dedupe**
+**Given** pairing succeeds,
+**Then** the success state shows "Paired," the TV name and model, and a "Done" action; it never says "Connected" and shows no remote keys,
+**And** returning to the shell shows the single paired TV summary, with the launcher still visible and disabled; the trust sheet and Forget arrive in Story 1.6,
+**And** `StableIdentity` follows the confirmed device ID first and the byte-exact MAC second, with one normalization rule; `TvId` is the hash of that identity and never derived from IP,
+**And** two same-model TVs produce distinct `TvId`s, and a manual-IP target that resolves to an already discovered TV reuses the same record and alias,
+**And** a session-only target uses an in-memory key, not a persisted `TvId`, and is gone after the process ends,
+**And** this story never replaces or forgets a stored TV; pairing a second TV and multi-TV selection are Epic 2.
+
+**AC10 — Testability**
+**Given** the discovery, identity, pairing, and storage logic,
+**Then** JVM tests cover identity precedence, `TvId` stability, duplicate resolution, MAC masking, IP validation, session-only gating, scan-state mapping, and the `PairingStore` contract with a fake store,
+**And** instrumentation or manual pilot tests cover SSDP, `/api/v2/`, first WSS pairing, Allow/Deny, token persistence after process restart, and the no-remote path,
+**And** no CI test requires a live TV, and no test asserts a socket write as success or prints pairing material.
+
+**AC11 — Scope discipline**
+**Given** this story,
+**Then** it adds no reconnect/backoff, token-rejection or identity-changed flow, trust sheet, Forget, multi-TV switcher, remote keys, matrix labels, text, pointer, voice, cast, mirror, wake, or Settings,
+**And** it adds no cloud fallback, no trust-all manager, no WSS-to-WS fallback, and no second `PrivatePeer` or multicast-lock implementation.
+
+### Story 1.6: Inspect and forget a trusted TV
+
+As the pilot user,
+I want to see what UniRem stores about my TV and forget it when I choose,
+So that I can verify the trust relationship and remove it without hunting through settings.
+
+**FRs:** FR39 (Epic 1 trust subset), FR38 (deletion subset); UX-DR21 (Details), UX-DR35 (TV details subset); NFR4-NFR5, NFR12; AD-7.
+
+**Out of scope:** full TV details (four capability labels, last verified, diagnostics), Settings, one-TV switcher, remote, reconnect, health dot, matrix, text, pointer, voice, cast, mirror, wake.
+
+**Acceptance Criteria:**
+
+**AC1 — Reachability and durable-only**
+**Given** a durable paired TV,
+**When** the user taps "TV details" on the paired summary,
+**Then** the trust sheet opens, titled "TV details" and naming the TV,
+**And** it reads the stored TV record and pin without opening a socket, so it works with the TV off,
+**And** it is a reusable destination keyed by `TvId`; Story 1.9's one-TV switcher opens the same sheet,
+**And** a session-only target has no trust sheet or Forget; its summary says "Session only — this TV won't be saved,"
+**And** the sheet dismisses on back, scrim tap, or drag-down, and focus returns to "TV details."
+
+**AC2 — Identity and fingerprint**
+**Given** the trust sheet,
+**Then** it shows the TV name, model, Tizen version, masked MAC, last reached IP, and SPKI fingerprint,
+**And** the mask reveals at most the last two MAC octets, and the IP is labeled "Last reached IP" because it may be stale,
+**And** the fingerprint is the SHA-256 of the pinned leaf SPKI, shown as grouped uppercase hex in `code` typography, fully visible and selectable,
+**And** it is derived from the stored pin, not a live probe; the app does not claim the TV displays the same string,
+**And** if the stored pin is missing or unreadable, the sheet shows "Fingerprint unavailable" and Forget remains available,
+**And** the sheet never shows the full MAC, token, pin, or a capability label.
+
+**AC3 — Durable state and local-only copy**
+**Given** the trust sheet,
+**Then** it shows "Paired" as the durable state and never "Connected" or a live health state,
+**And** it shows the exact copy "Pairing is stored encrypted on this phone; nothing is sent to the internet."
+**And** it makes no claim that the TV is online, reachable, or currently connected,
+**And** no critical label or fingerprint line truncates; the fingerprint wraps or scrolls inside its block.
+
+**AC4 — Forget confirmation and deletion**
+**Given** the trust sheet,
+**When** the user taps "Forget TV,"
+**Then** the sheet content changes to the confirmation "Forget [TV]? You'll need to pair again." / "Forget" / "Cancel," with no nested sheet,
+**And** "Forget" is the destructive action in salmon outline, never a filled red block, and "Cancel" is secondary,
+**And** on confirm, the app closes any open channel for that TV without sending a command, deletes the Keystore alias/token/pin, deletes the Room TV record and its dependent rows, clears the active target, and returns to the no-TV state,
+**And** the app notes "The TV may still list this phone until you remove it on the TV,"
+**And** it does not claim to remove the phone from the TV; it only removes local trust,
+**And** the launcher remains disabled, and "Add your first TV" works again; a new pairing creates a new record and alias.
+
+**AC5 — Cancel and failure paths**
+**Given** the Forget confirmation,
+**When** the user taps "Cancel" or dismisses it,
+**Then** nothing is deleted and the trust sheet remains available,
+**And** if Keystore or Room deletion fails, the app keeps the record and shows "The TV couldn't be forgotten. Try again." / "Try again" / "Close,"
+**And** it does not claim the TV was forgotten until both the trust material and the record are gone,
+**And** a missing Keystore alias is treated as already deleted, so the Room record can still be removed,
+**And** "Try again" retries only on user action; no silent retry or partial success message.
+
+**AC6 — Privacy and logging**
+**Given** the trust sheet and Forget,
+**Then** `RedactedLog` is the only logger; the fingerprint may be displayed but is never logged,
+**And** token, pin, SPKI, full MAC, and pairing payloads never appear in logs,
+**And** no `println` or direct `Log` call exists outside the sink,
+**And** deletion leaves no token, pin, alias, or full MAC in Room, DataStore, or app-private files.
+
+**AC7 — Testability**
+**Given** the trust sheet and deletion logic,
+**Then** JVM tests cover MAC masking, fingerprint formatting, the Forget state machine, cancel and failure paths, and the `PairingStore.delete(tvId)` contract with a fake store,
+**And** instrumentation or manual tests verify Keystore alias deletion and Room record deletion after process restart,
+**And** no token, pin, or full MAC remains after a successful Forget,
+**And** no test requires a live TV, asserts a socket write as success, or prints secrets.
+
+**AC8 — Scope discipline**
+**Given** this story,
+**Then** it adds no full TV details, four capability labels, last verified, diagnostics, Settings, one-TV switcher, remote, reconnect, health dot, matrix, text, pointer, voice, cast, mirror, or wake,
+**And** the trust sheet is the Epic 1 FR39 subset, not full FR39,
+**And** it adds no token/pin display, cloud call, trust-all manager, or second trust store.
+
+### Story 1.7: Reconnect, go offline honestly, and recover identity changes
+
+As the pilot user,
+I want UniRem to reconnect when the TV comes back, tell me when it is offline or no longer trusted, and let me re-pair,
+So that I can recover without guessing whether the TV is off, the network failed, or the TV's identity changed.
+
+**FRs:** FR5, FR8, FR13 (state only; key UI in Stories 1.10-1.11), FR37, FR40; UX-DR8, UX-DR19, UX-DR36, UX-DR39; NFR4, NFR6-NFR7, NFR12; AD-3, AD-7, AD-11.
+
+**Out of scope:** keys/D-pad, `CommandTracker`/`submit()`, ring, launcher enablement, full Remote shell/topbar switcher, matrix labels, trust sheet/Forget changes, multi-TV target switching, text, pointer, voice, cast, mirror, wake, Settings.
+
+**Acceptance Criteria:**
+
+**AC1 — Connection status surface**
+**Given** a durable paired TV,
+**When** the user taps "Check connection" on the paired summary,
+**Then** the status surface opens and starts exactly one connection using the stored record, token, and pin,
+**And** it shows the TV name, "Paired" as the durable label, a health dot, and a text state: "Connecting…" then "Connected," "Reconnecting…," or "Offline"; no spinner,
+**And** leaving the surface closes the socket and stops backoff; there is no background reconnect,
+**And** there is no auto-connect on app launch or while the surface is closed; the paired summary remains "Paired,"
+**And** the TV name is static; the TV switcher is Story 1.9,
+**And** the surface adds no keys, ring, launcher enablement, or command state,
+**And** `ConnectionHealth` owns the live state and power state `On`/`Unknown`; asleep and wake observations are later.
+
+**AC2 — Pinned connection and token order**
+**Given** the connection starts,
+**Then** the app selects the stored `TvId` and alias and builds a client scoped to that TV,
+**And** the client validates the pinned leaf SPKI during the TLS handshake before any HTTP upgrade or token bytes are sent; a mismatch aborts with `TvFailure.IdentityChanged`,
+**And** on a match, the token, when present, is attached in the WSS URL; the token may be in the URL string but is not written to the socket until the handshake succeeds,
+**And** a TV with `TokenAuthSupport=false` uses the pin-only path, and a token-auth TV with no token is `PairingRequired`,
+**And** the scoped client is the only place hostname checks are relaxed; there is no trust-all manager, no WSS-to-WS fallback, and no cloud path,
+**And** every destination passes `PrivatePeer` and the gate must be `Granted`; otherwise the result is `TvFailure.LanDenied`, not "TV didn't answer,"
+**And** `ms.channel.unauthorized` or a TV re-prompt maps to `PairingRequired`, not `Offline`,
+**And** the token, pin, SPKI, full MAC, and WSS URL are never logged; `RedactedLog` is the only logger.
+
+**AC3 — Backoff, reconnecting, and offline**
+**Given** the socket closes or a connection attempt fails,
+**Then** the health state moves to `Reconnecting`, the dot is amber, and the banner shows "Reconnecting…" / "Retry" / "Not now," with no spinner,
+**And** the app retries on one injected schedule: 1s, 2s, 4s, 8s, 16s, 30s cap, with ±20% jitter, reset after 30s connected; there is no tight loop or second timer,
+**And** "Retry" attempts immediately, resets the schedule, and first tries the stored IP; if that fails and the gate is granted, it may run one discovery scan and reconnect only to the same `TvId`, never a different TV,
+**And** "Not now" stops auto-retry and moves to `Offline`; the offline banner shows "TV didn't answer — retry?" / "Keys are off until the TV reconnects." / "Retry" / "Not now,"
+**And** when the schedule is exhausted, the state is `Offline`; Retry restarts it,
+**And** a network change is treated as a socket close and never reuses a stale socket,
+**And** a connection attempt has a bounded 10s timeout,
+**And** `keysEnabled` is false in `Reconnecting` and `Offline`, and true only when `Connected`; this story renders no keys,
+**And** no command is queued, replayed, or retried; the outbound queue is empty on close.
+
+**AC4 — Identity changed**
+**Given** the pin check fails, or a fresh `/api/v2/` read reports a different stable identity than the stored record,
+**Then** the app aborts before sending the token, sets `keysEnabled` false, and shows "This TV's identity changed. Re-pair to continue." / "Re-pair,"
+**And** it never overwrites the stored pin or record automatically, never retries with the old pin, and never falls back from WSS to WS,
+**And** the banner is assertive, and the health dot is amber,
+**And** "Re-pair" opens the re-pair flow in AC6; back leaves the banner and keys disabled,
+**And** the trust sheet and Forget from Story 1.6 remain available,
+**And** no token, pin, or SPKI is logged.
+
+**AC5 — Pairing required**
+**Given** the TV rejects the token with `ms.channel.unauthorized` or re-prompts despite a token,
+**Then** the app shows "Pairing is required for this TV." / "Re-pair," sets `keysEnabled` false, and does not retry with the old token,
+**And** the old token is not deleted until a successful re-pair; the record and trust sheet remain,
+**And** a transient network failure is not mislabeled as pairing required; only an explicit unauthorized or re-prompt maps here,
+**And** the pairing-required banner is polite, not assertive, and back leaves it in place.
+
+**AC6 — Re-pair atomicity and identity**
+**Given** the user taps "Re-pair,"
+**Then** the Story 1.5 Allow/Deny flow opens with the stored TV name and identity, including the always-visible no-remote path, and no old token on the first connection,
+**And** on success, the app verifies the fresh `/api/v2/` stable identity equals the stored `TvId`; if it does not, it fails closed as identity changed and does not replace trust,
+**And** on success, the new token and pin are written under a new alias, the TV record is updated to point to it, the old alias is deleted, and no duplicate record or alias exists,
+**And** the record's name, model, firmware, IP, and reached interface are updated when they changed,
+**And** on deny, timeout, or failure, the old record and trust material remain but are still unusable; the banner remains and no duplicate is created,
+**And** the old trust is not deleted before the new trust is committed; a failed replacement leaves the old record and alias intact,
+**And** re-pair reuses Story 1.5's copy and paths; there is no second pairing implementation,
+**And** after success, the app shows "Connecting…" and only claims "Connected" when the new channel is open.
+
+**AC7 — Health UI and accessibility**
+**Given** the status surface,
+**Then** the health dot is 8dp with a 2dp halo at 18%: connected mint, reconnecting amber, offline salmon; it does not pulse except during reconnect, and reduced motion removes the pulse,
+**And** its accessibility label names the TV and health, and color is not the only carrier because the text state is visible,
+**And** the banner uses the oxblood style, one recovery action plus an optional "Not now," pushes content, stays within two lines plus the action row, and shows no spinner,
+**And** the banner is assertive only for offline and identity changed; reconnecting and pairing required are polite,
+**And** "Paired" and "Connected" are distinct and never used interchangeably,
+**And** the state word never truncates; targets are at least 48dp; 200% font scale, RTL, and no horizontal scrolling are respected,
+**And** the status surface uses the topbar pattern with no command state in the topbar.
+
+**AC8 — No queue and no background socket**
+**Given** the status surface is open,
+**Then** the socket is scoped to that surface; leaving closes it and stops backoff,
+**And** no command is queued, replayed, or retried on reconnect, and no synthetic frame is emitted,
+**And** the app does not auto-connect on launch or while the surface is closed,
+**And** process death leaves no socket; the next launch shows "Paired," not "Connected,"
+**And** the story acquires no foreground service, wake lock, or notification for this connection.
+
+**AC9 — Testability**
+**Given** the connection and recovery logic,
+**Then** JVM tests cover the backoff schedule, state transitions, `keysEnabled`, unauthorized and pin-mismatch mapping, the re-pair state machine, `PairingStore` replace atomicity with a fake store, and the no-queue invariant,
+**And** an instrumentation test with a local TLS test server verifies that a pin mismatch aborts before any token request bytes, a token rejection maps to `PairingRequired`, and a changed stable identity fails re-pair,
+**And** manual pilot tests cover the real TV happy path, offline/reconnect, token rejection/re-pair, and identity changed/re-pair,
+**And** no test requires a live TV in CI, asserts a socket write as success, or prints secrets.
+
+**AC10 — Scope discipline**
+**Given** this story,
+**Then** it adds no keys/D-pad, `CommandTracker`/`submit()`, ring, launcher enablement, full Remote shell/topbar switcher, matrix labels, one-TV switcher, trust sheet/Forget changes, multi-TV, text, pointer, voice, cast, mirror, wake, or Settings,
+**And** it adds no cloud fallback, no WSS-to-WS fallback, no trust-all manager, no command queue or retry, no background socket, foreground service, wake lock, or token/pin logging,
+**And** the status surface is a precursor; Story 1.10 replaces it with the Remote and reuses `ConnectionHealth` and the banner,
+**And** the re-pair flow reuses Story 1.5; no second pairing implementation exists.
