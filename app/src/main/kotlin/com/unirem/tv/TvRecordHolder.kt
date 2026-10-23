@@ -15,9 +15,9 @@ private const val TAG = "TvStore"
 /**
  * Room-backed TV record holder. Stores one row per stable identity plus the
  * Keystore alias; secrets never enter Room. Session-only targets (no device
- * ID and no MAC) are never persisted and have no alias. Never replaces or
- * forgets a stored TV: upserts are keyed by [TvId] and this story exposes no
- * delete path.
+ * ID and no MAC) are never persisted and have no alias. Story 1.6 owns the
+ * single delete path: [forget] removes one [TvId]-keyed row; upserts stay
+ * keyed by [TvId].
  */
 class RoomTvStore private constructor(private val dao: TvDao) {
 
@@ -69,6 +69,7 @@ class RoomTvStore private constructor(private val dao: TvDao) {
             networkType = networkType.wire(),
             networkInterface = networkInterface,
             alias = tvId.hex,
+            lastIp = candidate.ip,
             pairedAtEpochSeconds = now.epochSecond,
         )
         return try {
@@ -79,6 +80,27 @@ class RoomTvStore private constructor(private val dao: TvDao) {
             RedactedLog.warn(TAG, "TV record unwritable")
             null
         }
+    }
+
+    /**
+     * Forgets one durable TV by [TvId]: deletes the Room row plus dependents.
+     * Secrets live in Keystore and are cleared separately via
+     * `PairingStore.clear`; this holder never touches them. Returns true only
+     * when no row for [tvId] remains (an already-absent row counts as gone);
+     * false keeps the caller's record with a user-action-only retry.
+     */
+    suspend fun forget(tvId: TvId): Boolean = try {
+        dao.deleteById(tvId.hex)
+        val gone = dao.byId(tvId.hex) == null
+        if (gone) {
+            RedactedLog.debug(TAG, "TV record forgotten")
+        } else {
+            RedactedLog.warn(TAG, "TV record not forgotten")
+        }
+        gone
+    } catch (e: Exception) {
+        RedactedLog.warn(TAG, "TV record not forgotten")
+        false
     }
 
     companion object {
@@ -94,7 +116,7 @@ class RoomTvStore private constructor(private val dao: TvDao) {
                     context.applicationContext,
                     TvDatabase::class.java,
                     "unirem-tvs",
-                ).fallbackToDestructiveMigration(false).build()
+                ).addMigrations(MIGRATION_1_2).fallbackToDestructiveMigration(false).build()
                 val created = RoomTvStore(db.tvDao())
                 instance = created
                 return created

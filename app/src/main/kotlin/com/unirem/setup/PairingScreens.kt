@@ -198,6 +198,7 @@ fun PairedScreen(
     model: String,
     onDone: () -> Unit,
     modifier: Modifier = Modifier,
+    sessionOnly: Boolean = false,
 ) {
     val notReported = stringResource(R.string.setup_not_reported)
     val line = (if (model.isBlank()) name else "$name · $model").ifBlank { notReported }
@@ -212,6 +213,13 @@ fun PairedScreen(
             text = line,
             style = GraphiteMintType.Body.copy(color = GraphiteMint.InkSecondary),
         )
+        if (sessionOnly) {
+            Spacer(modifier = Modifier.height(GraphiteMintSpacing.X1))
+            BasicText(
+                text = stringResource(R.string.paired_session_only),
+                style = GraphiteMintType.BodySmall.copy(color = GraphiteMint.InkSecondary),
+            )
+        }
         Spacer(modifier = Modifier.height(GraphiteMintSpacing.X4))
         GatePrimaryAction(
             label = stringResource(R.string.paired_done),

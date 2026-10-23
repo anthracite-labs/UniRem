@@ -1,16 +1,20 @@
 package com.unirem
 
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.unirem.core.api.NetworkType
+import com.unirem.tv.MIGRATION_1_2
 import com.unirem.tv.RoomTvStore
 import com.unirem.tv.TvDao
 import com.unirem.tv.TvRecord
 import com.unirem.tv.api.TvCandidate
 import com.unirem.tv.networkTypeOf
 import com.unirem.tv.wire
+import java.lang.reflect.Proxy
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -31,6 +35,12 @@ class FakeTvDao : TvDao {
     override suspend fun upsert(record: TvRecord) {
         rows[record.tvId] = record
         flow.value = rows.values.toList()
+    }
+
+    override suspend fun deleteById(tvId: String): Int {
+        val removed = rows.remove(tvId) != null
+        flow.value = rows.values.toList()
+        return if (removed) 1 else 0
     }
 }
 
@@ -105,5 +115,86 @@ class RoomTvStoreTest {
         assertEquals(NetworkType.Ethernet, networkTypeOf("ethernet"))
         assertEquals(NetworkType.Unknown, networkTypeOf("unknown"))
         assertEquals(NetworkType.Unknown, networkTypeOf("bogus"))
+    }
+
+    @Test
+    fun persistStoresLastReachedIp(): Unit = runBlocking {
+        val store = RoomTvStore.forTests(FakeTvDao())
+        val record = store.persistPaired(
+            candidate("192.168.1.9", deviceId = "device-9"),
+            NetworkType.Wifi,
+            "wlan",
+        )!!
+        assertEquals("192.168.1.9", record.lastIp)
+    }
+
+    @Test
+    fun forgetDeletesOnlyThatTvId(): Unit = runBlocking {
+        val dao = FakeTvDao()
+        val store = RoomTvStore.forTests(dao)
+        val first = store.persistPaired(
+            candidate("192.168.1.2", deviceId = "device-a"),
+            NetworkType.Wifi,
+            "wlan",
+        )!!
+        val second = store.persistPaired(
+            candidate("192.168.1.3", deviceId = "device-b"),
+            NetworkType.Wifi,
+            "wlan",
+        )!!
+        val firstId = com.unirem.core.api.TvId(first.tvId)
+        assertTrue(store.forget(firstId))
+        assertNull(store.byId(firstId))
+        assertEquals(1, store.count())
+        assertEquals(second.tvId, store.all().single().tvId)
+    }
+
+    @Test
+    fun forgetMissingRowCountsAsGone(): Unit = runBlocking {
+        val store = RoomTvStore.forTests(FakeTvDao())
+        val missing = com.unirem.core.api.TvId(
+            com.unirem.core.api.IdentityRules.tvId(
+                com.unirem.core.api.IdentityRules.resolve("ghost", null),
+            )!!.hex,
+        )
+        assertTrue(store.forget(missing))
+    }
+
+    @Test
+    fun forgetDaoThrowCountsAsFailure(): Unit = runBlocking {
+        val throwing = object : TvDao by FakeTvDao() {
+            override suspend fun deleteById(tvId: String): Int = throw RuntimeException("boom")
+        }
+        val store = RoomTvStore.forTests(throwing)
+        val missing = com.unirem.core.api.TvId(
+            com.unirem.core.api.IdentityRules.tvId(
+                com.unirem.core.api.IdentityRules.resolve("ghost", null),
+            )!!.hex,
+        )
+        assertFalse(store.forget(missing))
+    }
+
+    @Test
+    fun migration1_2AddsLastIpColumnWithDefault() {
+        val executed = mutableListOf<String>()
+        val db = Proxy.newProxyInstance(
+            javaClass.classLoader,
+            arrayOf(SupportSQLiteDatabase::class.java),
+        ) { _, method, args ->
+            if (method.name == "execSQL") {
+                executed.add(args?.get(0) as String)
+                null
+            } else when (method.returnType) {
+                Boolean::class.javaPrimitiveType -> false
+                Int::class.javaPrimitiveType -> 0
+                Long::class.javaPrimitiveType -> 0L
+                else -> null
+            }
+        } as SupportSQLiteDatabase
+        MIGRATION_1_2.migrate(db)
+        assertEquals(
+            listOf("ALTER TABLE tvs ADD COLUMN lastIp TEXT NOT NULL DEFAULT ''"),
+            executed,
+        )
     }
 }

@@ -17,11 +17,14 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.stringResource
 import com.unirem.core.api.LanAccess
 import com.unirem.gate.DiagnosticReadout
 import com.unirem.gate.ExplainerSheet
 import com.unirem.gate.GatePrimaryAction
+import com.unirem.gate.GateQuietAction
 import com.unirem.gate.LanGateSnapshot
 import com.unirem.gate.PermissionCard
 import com.unirem.setup.DisabledLauncher
@@ -33,8 +36,10 @@ import com.unirem.ui.graphitemint.GraphiteMintType
  * Foundation shell with the Story 1.5 setup entry. With no stored TV the
  * shell reads "No TVs yet." plus the quiet code readout and a disabled
  * six-slot launcher; "Add your first TV" starts exactly one scan. With a
- * stored TV the setup entry is replaced by the single-TV summary; this story
- * never replaces or forgets a stored TV.
+ * stored TV the setup entry is replaced by the single-TV summary plus the
+ * reusable `TvId`-keyed "TV details" trust sheet (Story 1.6); the launcher
+ * stays disabled. Session-only targets get no sheet and show the session-only
+ * label.
  */
 @Composable
 fun ShellScreen(
@@ -48,6 +53,9 @@ fun ShellScreen(
     hasPairedTv: Boolean = false,
     tvSummary: String? = null,
     onAddTv: () -> Unit = {},
+    onShowDetails: () -> Unit = {},
+    detailsFocusRequester: FocusRequester? = null,
+    sessionOnlyActive: Boolean = false,
 ) {
     Box(
         modifier = Modifier.fillMaxSize(),
@@ -89,7 +97,27 @@ fun ShellScreen(
                     style = GraphiteMintType.Body.copy(color = GraphiteMint.InkPrimary),
                 )
                 Spacer(modifier = Modifier.height(GraphiteMintSpacing.X3))
+                DisabledLauncher(modifier = Modifier.fillMaxWidth())
+                Spacer(modifier = Modifier.height(GraphiteMintSpacing.X3))
+                GateQuietAction(
+                    label = stringResource(R.string.trust_details),
+                    description = stringResource(R.string.trust_details_cd),
+                    onClick = onShowDetails,
+                    modifier = if (detailsFocusRequester != null) {
+                        Modifier.focusRequester(detailsFocusRequester)
+                    } else {
+                        Modifier
+                    },
+                )
+                Spacer(modifier = Modifier.height(GraphiteMintSpacing.X3))
             } else {
+                if (sessionOnlyActive) {
+                    BasicText(
+                        text = stringResource(R.string.paired_session_only),
+                        style = GraphiteMintType.Body.copy(color = GraphiteMint.InkPrimary),
+                    )
+                    Spacer(modifier = Modifier.height(GraphiteMintSpacing.X1))
+                }
                 BasicText(
                     text = stringResource(R.string.setup_no_tvs),
                     style = GraphiteMintType.Body.copy(color = GraphiteMint.InkPrimary),

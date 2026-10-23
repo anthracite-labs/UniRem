@@ -7,8 +7,17 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.PrimaryKey
 import androidx.room.Query
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.unirem.core.api.NetworkType
 import kotlinx.coroutines.flow.Flow
+
+/** 1 -> 2 adds the `lastIp` column shown as "Last reached IP". */
+val MIGRATION_1_2: Migration = object : Migration(1, 2) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE tvs ADD COLUMN lastIp TEXT NOT NULL DEFAULT ''")
+    }
+}
 
 /**
  * Room record for one paired TV. Holds the identity plus the Keystore alias;
@@ -31,6 +40,8 @@ data class TvRecord(
     val networkInterface: String,
     val alias: String,
     val pairedAtEpochSeconds: Long,
+    /** Last IP that yielded this record, shown as "Last reached IP". Never a live probe. */
+    val lastIp: String = "",
 )
 
 @Dao
@@ -49,9 +60,12 @@ interface TvDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(record: TvRecord)
+
+    @Query("DELETE FROM tvs WHERE tvId = :tvId")
+    suspend fun deleteById(tvId: String): Int
 }
 
-@Database(entities = [TvRecord::class], version = 1, exportSchema = false)
+@Database(entities = [TvRecord::class], version = 2, exportSchema = false)
 abstract class TvDatabase : androidx.room.RoomDatabase() {
     abstract fun tvDao(): TvDao
 }

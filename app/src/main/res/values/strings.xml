@@ -84,4 +84,28 @@
     <string name="paired_title">Paired</string>
     <string name="paired_done">Done</string>
     <string name="paired_done_cd">Return to the shell</string>
+    <string name="paired_session_only">Session only — this TV won\'t be saved.</string>
+
+    <string name="trust_details">TV details</string>
+    <string name="trust_details_cd">Show TV details</string>
+    <string name="trust_dismiss_handle">Drag down to close</string>
+    <string name="trust_paired">Paired</string>
+    <string name="trust_local_only">Pairing is stored encrypted on this phone; nothing is sent to the internet.</string>
+    <string name="trust_last_ip">Last reached IP: %1$s</string>
+    <string name="trust_mac">MAC: %1$s</string>
+    <string name="trust_fingerprint_label">SPKI fingerprint</string>
+    <string name="trust_fingerprint_unavailable">Fingerprint unavailable</string>
+    <string name="trust_model">Model: %1$s</string>
+    <string name="trust_firmware">Tizen version: %1$s</string>
+    <string name="trust_forget">Forget</string>
+    <string name="trust_forget_cd">Forget this TV</string>
+    <string name="trust_forget_title">Forget %1$s? You\'ll need to pair again.</string>
+    <string name="trust_cancel">Cancel</string>
+    <string name="trust_cancel_cd">Keep this TV</string>
+    <string name="trust_tv_note">The TV may still list this phone until you remove it on the TV.</string>
+    <string name="trust_forget_failed">The TV couldn\'t be forgotten. Try again.</string>
+    <string name="trust_retry">Try again</string>
+    <string name="trust_retry_cd">Retry forgetting this TV</string>
+    <string name="trust_close">Close</string>
+    <string name="trust_close_cd">Close the error</string>
 </resources>

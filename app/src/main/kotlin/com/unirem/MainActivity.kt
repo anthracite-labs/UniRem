@@ -29,15 +29,20 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import com.unirem.core.api.IdentityRules
 import com.unirem.core.api.LanAccess
 import com.unirem.core.api.NetworkType
 import com.unirem.core.api.RedactedLog
+import com.unirem.core.api.TvId
 import com.unirem.gate.LanAccessGate
 import com.unirem.setup.AddTvScreen
 import com.unirem.setup.PairedScreen
 import com.unirem.setup.PairingScreen
 import com.unirem.setup.SetupLogic
 import com.unirem.setup.SetupTopBar
+import com.unirem.setup.TrustLogic
+import com.unirem.setup.TrustSheet
 import com.unirem.tv.KeystorePairingStore
 import com.unirem.tv.RoomTvStore
 import com.unirem.tv.api.DiscoveryResult
@@ -45,6 +50,7 @@ import com.unirem.tv.api.PairOutcome
 import com.unirem.tv.api.PairingEntry
 import com.unirem.tv.api.TvCandidate
 import com.unirem.tv.api.TvGateways
+import com.unirem.tv.api.FingerprintFormat
 import com.unirem.ui.graphitemint.GraphiteMintSpacing
 import com.unirem.ui.graphitemint.GraphiteMintTheme
 import kotlinx.coroutines.Dispatchers
@@ -93,7 +99,17 @@ class MainActivity : ComponentActivity() {
                 var pairingFailed by remember { mutableStateOf<String?>(null) }
                 var pairedName by remember { mutableStateOf("") }
                 var pairedModel by remember { mutableStateOf("") }
+                var pairedSessionOnly by remember { mutableStateOf(false) }
                 val sessionTrust = remember { mutableStateMapOf<String, PairingEntry>() }
+                // Reusable TvId-keyed trust sheet destination (Story 1.9 reuses
+                // the same key). Holds the TvId hex, never an IP.
+                var trustTvIdHex by rememberSaveable { mutableStateOf<String?>(null) }
+                var trustConfirming by rememberSaveable { mutableStateOf(false) }
+                var trustForgetting by remember { mutableStateOf(false) }
+                var trustForgetFailed by remember { mutableStateOf(false) }
+                var trustEntry by remember { mutableStateOf<PairingEntry?>(null) }
+                var trustEntryLoaded by remember { mutableStateOf(false) }
+                val detailsFocus = remember { FocusRequester() }
 
                 val discovery = remember {
                     TvGateways.discovery(
@@ -109,6 +125,76 @@ class MainActivity : ComponentActivity() {
 
                 LaunchedEffect(Unit) {
                     records = withContext(Dispatchers.IO) { tvStore.all() }
+                }
+
+                // Durable-only sheet data: stored Room record plus the
+                // Keystore entry, never a socket (works TV-off).
+                val trustRecord = remember(records, trustTvIdHex) {
+                    trustTvIdHex?.let { hex -> records.firstOrNull { it.tvId == hex } }
+                }
+                LaunchedEffect(trustTvIdHex) {
+                    if (trustTvIdHex == null) {
+                        trustEntry = null
+                        trustEntryLoaded = false
+                        trustConfirming = false
+                        trustForgetting = false
+                    } else {
+                        val hex = trustTvIdHex ?: return@LaunchedEffect
+                        trustForgetFailed = false
+                        trustEntryLoaded = false
+                        trustEntry = withContext(Dispatchers.IO) {
+                            pairingStore.load(TvId(hex))
+                        }
+                        // Gate the sheet on the finished load so a missing or
+                        // unreadable pin ("Fingerprint unavailable") never
+                        // flashes while the Keystore read is in flight.
+                        trustEntryLoaded = true
+                    }
+                }
+                // Focus returns to "TV details" when the sheet closes.
+                LaunchedEffect(trustTvIdHex) {
+                    if (trustTvIdHex == null) {
+                        try {
+                            detailsFocus.requestFocus()
+                        } catch (e: Exception) {
+                            RedactedLog.debug(TAG, "Details focus not restored")
+                        }
+                    }
+                }
+
+                fun runForget(tvId: TvId) {
+                    if (trustForgetting) return
+                    trustForgetting = true
+                    trustForgetFailed = false
+                    scope.launch(Dispatchers.IO) {
+                        // Silent by construction: no socket work, no command
+                        // sent. Clear Keystore material first, then the Room
+                        // row; a missing alias counts as already deleted.
+                        pairingStore.clear(tvId)
+                        val roomGone = tvStore.forget(tvId)
+                        val afterClear = pairingStore.load(tvId)
+                        val decision = TrustLogic.decideForget(roomGone, afterClear)
+                        withContext(Dispatchers.Main) {
+                            trustForgetting = false
+                            when (decision) {
+                                TrustLogic.ForgetDecision.Succeeded -> {
+                                    records = tvStore.all()
+                                    pairedName = ""
+                                    pairedModel = ""
+                                    pairedSessionOnly = false
+                                    trustConfirming = false
+                                    trustForgetFailed = false
+                                    trustTvIdHex = null
+                                    route = SetupRoute.Shell
+                                    RedactedLog.debug(TAG, "Trust forgotten")
+                                }
+                                TrustLogic.ForgetDecision.Failed -> {
+                                    trustForgetFailed = true
+                                    RedactedLog.warn(TAG, "Trust not forgotten")
+                                }
+                            }
+                        }
+                    }
                 }
 
                 fun dismissKey(candidate: TvCandidate): String =
@@ -172,6 +258,7 @@ class MainActivity : ComponentActivity() {
                                         sessionTrust[key] = PairingEntry(outcome.token, outcome.pin)
                                         pairedName = candidate.displayName
                                         pairedModel = candidate.modelLabel
+                                        pairedSessionOnly = true
                                         route = SetupRoute.Paired
                                     } else {
                                         val tvId = candidate.tvId!!
@@ -187,6 +274,7 @@ class MainActivity : ComponentActivity() {
                                             records = withContext(Dispatchers.IO) { tvStore.all() }
                                             pairedName = candidate.displayName
                                             pairedModel = candidate.modelLabel
+                                            pairedSessionOnly = false
                                             route = SetupRoute.Paired
                                         }
                                     }
@@ -205,6 +293,7 @@ class MainActivity : ComponentActivity() {
                         val summary = records.firstOrNull()?.let {
                             if (it.model.isBlank()) it.name else "${it.name} · ${it.model}"
                         }?.ifBlank { getString(R.string.setup_not_reported) }
+                        val sessionOnlyActive = sessionTrust.isNotEmpty() && records.isEmpty()
                         ShellScreen(
                             versionName = BuildConfig.VERSION_NAME,
                             snapshot = snapshot,
@@ -236,7 +325,55 @@ class MainActivity : ComponentActivity() {
                                 route = SetupRoute.AddTv
                                 startScan()
                             },
+                            onShowDetails = {
+                                val hex = records.firstOrNull()?.tvId
+                                if (hex != null) {
+                                    trustConfirming = false
+                                    trustForgetFailed = false
+                                    trustTvIdHex = hex
+                                }
+                            },
+                            detailsFocusRequester = detailsFocus,
+                            sessionOnlyActive = sessionOnlyActive,
                         )
+                        // Durable-only trust sheet keyed by TvId. Session-only
+                        // targets get no sheet. Gated on the finished
+                        // Keystore load so "Fingerprint unavailable" never
+                        // flashes mid-read.
+                        if (trustRecord != null && TrustLogic.sheetVisible(sessionOnlyActive, trustTvIdHex, true, trustEntryLoaded)) {
+                            TrustSheet(
+                                record = trustRecord,
+                                maskedMac = IdentityRules.maskMac(trustRecord.wifiMac),
+                                fingerprint = FingerprintFormat.format(trustEntry?.pin),
+                                confirming = trustConfirming,
+                                forgetting = trustForgetting,
+                                forgetFailed = trustForgetFailed,
+                                onRequestForget = {
+                                    trustForgetFailed = false
+                                    trustConfirming = true
+                                },
+                                onConfirmForget = {
+                                    val hex = trustTvIdHex ?: return@TrustSheet
+                                    runForget(TvId(hex))
+                                },
+                                onCancelConfirm = {
+                                    // Cancel deletes nothing and keeps the sheet.
+                                    trustConfirming = false
+                                },
+                                onRetryForget = {
+                                    val hex = trustTvIdHex ?: return@TrustSheet
+                                    runForget(TvId(hex))
+                                },
+                                onCloseError = { trustForgetFailed = false },
+                                onDismiss = {
+                                    if (trustConfirming) {
+                                        trustConfirming = false
+                                    } else {
+                                        trustTvIdHex = null
+                                    }
+                                },
+                            )
+                        }
                     }
                     SetupRoute.AddTv -> {
                         Box(
@@ -377,6 +514,7 @@ class MainActivity : ComponentActivity() {
                                             }
                                         }
                                     },
+                                    sessionOnly = pairedSessionOnly,
                                 )
                             }
                         }
