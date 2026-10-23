@@ -18,6 +18,9 @@
 - source_spec: `C:\Users\KAVEN\Desktop\UniRem\_bmad-output\implementation-artifacts\spec-1-9-switch-the-one-paired-tv-without-guessing.md`
   summary: Bottom sheets move focus in and back but do not trap keyboard focus while open.
   evidence: E11/E14 real but idiom-level — the approved TrustSheet pattern has no trap either; fix belongs to the shared sheet idiom, not this story.
-- source_spec: `C:\Users\KAVEN\Desktop\UniRem\_bmad-output\implementation-artifacts\spec-1-10-open-the-remote-and-connect-to-the-selected-tv.md`
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-10-open-the-remote-and-connect-to-the-selected-tv.md`
   summary: Session-only remote whose TV starts answering /api/v2/ after pairing lands on IdentityChanged with a dead Re-pair and never connects.
   evidence: E9/E5 medium-if-true; unsettleable on JVM — needs an owned-device session-only flow where /api/v2/ answers post-pair to see whether the fresh-identity gate fires, and likely needs an identity-upgrade path beyond this story.
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-11-put-the-d-pad-in-the-ring-and-tell-the-truth-about-every-tap.md`
+  summary: D-pad button-to-command mapping and Unconfirmed-only "It worked" visibility have no executing test.
+  evidence: V4 (verified gap — swapping two commands in DpadCluster or flipping the RemoteScreen.kt:157 gate keeps the whole JVM suite green); settles with a Compose test on a fake TvControl asserting per-key onDpad values and Unconfirmed-only ItWorkedButton, in the owned-device pilot or Story 1.14.

@@ -46,7 +46,60 @@ internal class ConnectionSession(
     @Volatile
     private var client: OkHttpClient? = null
 
+    @Volatile
+    private var messageListener: ((String) -> Unit)? = null
+
     override val pendingWrites: Int = 0
+
+    override fun sendFrame(text: String): Boolean {
+        val live = socket ?: return false
+        return try {
+            live.send(text)
+        } catch (e: Exception) {
+            RedactedLog.debug(TAG, "Command write missed the socket")
+            false
+        }
+    }
+
+    override fun setMessageListener(listener: ((String) -> Unit)?) {
+        messageListener = listener
+    }
+
+    /**
+     * One inbound channel frame. The installed tracker hook runs first; a
+     * throwing hook never breaks latch matching. The frame is parsed once
+     * inside the guard and the single parsed value feeds both latch
+     * branches; unparseable frames are ignored after the hook. The text is
+     * never logged: it may carry a token.
+     */
+    internal fun onChannelMessage(
+        text: String,
+        result: AtomicReference<ConnectionOutcome?>,
+        latch: CountDownLatch,
+    ) {
+        try {
+            messageListener?.invoke(text)
+        } catch (e: Exception) {
+            RedactedLog.debug(TAG, "Message listener ignored")
+        }
+        val parsed = try {
+            ChannelEvents.parse(text)
+        } catch (e: Exception) {
+            return
+        }
+        when (parsed.name) {
+            "ms.channel.connect" -> {
+                if (result.compareAndSet(null, ConnectionOutcome.Connected(parsed.token))) {
+                    latch.countDown()
+                }
+            }
+            "ms.channel.unauthorized" -> {
+                if (result.compareAndSet(null, ConnectionOutcome.PairingRequired)) {
+                    latch.countDown()
+                }
+            }
+        }
+    }
 
     override suspend fun connect(request: ConnectionRequest): ConnectionOutcome {
         if (gateCheck() == LanAccess.Denied) return ConnectionOutcome.LanDenied
@@ -81,19 +134,7 @@ internal class ConnectionSession(
         val result = AtomicReference<ConnectionOutcome?>(null)
         val listener = object : WebSocketListener() {
             override fun onMessage(webSocket: WebSocket, text: String) {
-                when (ChannelEvents.parse(text).name) {
-                    "ms.channel.connect" -> {
-                        val parsed = ChannelEvents.parse(text)
-                        if (result.compareAndSet(null, ConnectionOutcome.Connected(parsed.token))) {
-                            latch.countDown()
-                        }
-                    }
-                    "ms.channel.unauthorized" -> {
-                        if (result.compareAndSet(null, ConnectionOutcome.PairingRequired)) {
-                            latch.countDown()
-                        }
-                    }
-                }
+                onChannelMessage(text, result, latch)
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {

@@ -86,8 +86,12 @@ import com.unirem.ui.graphitemint.GraphiteMint
 import com.unirem.ui.graphitemint.GraphiteMintSpacing
 import com.unirem.ui.graphitemint.GraphiteMintTheme
 import com.unirem.ui.graphitemint.GraphiteMintType
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.Instant
@@ -243,6 +247,46 @@ class MainActivity : ComponentActivity() {
                 }
                 val connSnapshot by connectionController.snapshot.collectAsState()
 
+                // Story 1.11: one socket-scoped command tracker per open
+                // remote. Same session key as the connection, created and
+                // cancelled with it; the tracker is the sole command-outcome
+                // writer. Recomposition never replays: taps are the only
+                // submit source, and rotation rebuilds the tracker at Idle.
+                val trackerScope = remember(remoteKey) {
+                    CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+                }
+                val commandTracker = remember(remoteKey) {
+                    TvGateways.commandControl(
+                        scope = trackerScope,
+                        send = { text -> connectionSession.sendFrame(text) },
+                    )
+                }
+                val commandOutcome by commandTracker.outcome.collectAsState()
+                DisposableEffect(remoteKey) {
+                    onDispose {
+                        try {
+                            connectionSession.setMessageListener(null)
+                        } catch (e: Exception) {
+                            RedactedLog.debug(TAG, "Message listener not detached")
+                        }
+                        commandTracker.close()
+                        trackerScope.cancel()
+                    }
+                }
+                // Socket truth clears command truth: a terminal banner, an
+                // Offline socket, or denied access clears the tracker to Idle
+                // with no queue, no replay, and no retry.
+                LaunchedEffect(connSnapshot.banner, connSnapshot.state, snapshot.access) {
+                    if (RemoteRules.shouldClearCommands(
+                            connSnapshot.state,
+                            connSnapshot.banner,
+                            snapshot.access == LanAccess.Denied,
+                        )
+                    ) {
+                        commandTracker.close()
+                    }
+                }
+
                 LaunchedEffect(Unit) {
                     records = withContext(Dispatchers.IO) { tvStore.all() }
                 }
@@ -389,6 +433,8 @@ class MainActivity : ComponentActivity() {
                                     connRunJob?.cancel()
                                     connRunJob = null
                                     connectionController.stop()
+                                    connectionSession.setMessageListener(null)
+                                    commandTracker.close()
                                     connEntry = null
                                     connLoaded = false
                                     rePairing = false
@@ -534,6 +580,8 @@ class MainActivity : ComponentActivity() {
                     connRunJob?.cancel()
                     connRunJob = null
                     connectionController.stop()
+                    connectionSession.setMessageListener(null)
+                    commandTracker.close()
                     connEntry = null
                     connLoaded = false
                     rePairing = false
@@ -551,6 +599,8 @@ class MainActivity : ComponentActivity() {
                     connRunJob?.cancel()
                     connRunJob = null
                     connectionController.stop()
+                    connectionSession.setMessageListener(null)
+                    commandTracker.close()
                 }
 
                 fun startConnectionRun(
@@ -618,6 +668,13 @@ class MainActivity : ComponentActivity() {
 
                 fun launchRemoteSession() {
                     connRunJob?.cancel()
+                    // Inbound channel text reaches the tracker, which parses
+                    // it in `:tv` and decides whether it is evidence. The
+                    // listener carries opaque strings only: no frame, key, or
+                    // socket type crosses into `:app`.
+                    connectionSession.setMessageListener { text ->
+                        commandTracker.onRemoteMessage(text)
+                    }
                     val hex = remoteTvIdHex
                     val ip = remoteSessionIp
                     when {
@@ -797,6 +854,7 @@ class MainActivity : ComponentActivity() {
                 LaunchedEffect(snapshot.networkType) {
                     if (remoteKey != null && connLoaded) {
                         connectionController.onNetworkChanged()
+                        commandTracker.close()
                     }
                 }
                 // Target change or clear while the remote is open closes the
@@ -1304,6 +1362,23 @@ class MainActivity : ComponentActivity() {
                                         state = connSnapshot.state,
                                         banner = connSnapshot.banner,
                                         lanDenied = lanDenied,
+                                        outcome = commandOutcome,
+                                        dpadEnabled = RemoteRules.dpadEnabled(
+                                            connSnapshot.state,
+                                            connSnapshot.banner,
+                                            lanDenied,
+                                        ),
+                                        onDpad = { command ->
+                                            if (RemoteRules.dpadEnabled(
+                                                    connSnapshot.state,
+                                                    connSnapshot.banner,
+                                                    snapshot.access == LanAccess.Denied,
+                                                )
+                                            ) {
+                                                commandTracker.submit(command)
+                                            }
+                                        },
+                                        onConfirm = { commandTracker.confirmUser() },
                                         onBack = { closeRemote() },
                                         onRetry = {
                                             if (lanDenied) return@RemoteScreen

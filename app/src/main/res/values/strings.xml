@@ -133,6 +133,17 @@
     <string name="remote_open_cd">Open the TV remote</string>
     <string name="remote_idle">Idle</string>
     <string name="remote_offline">Offline</string>
+    <string name="remote_sent">Sent</string>
+    <string name="remote_waiting">Waiting for TV…</string>
+    <string name="remote_tv_confirmed">TV confirmed</string>
+    <string name="remote_you_confirmed">You confirmed</string>
+    <string name="remote_it_worked">It worked</string>
+    <string name="remote_it_worked_cd">Confirm the TV received the command</string>
+    <string name="dpad_up">Up</string>
+    <string name="dpad_down">Down</string>
+    <string name="dpad_left">Left</string>
+    <string name="dpad_right">Right</string>
+    <string name="dpad_ok">OK</string>
 
     <string name="capability_full_control">Full control — confirms keys</string>
     <string name="capability_best_effort">Best-effort — can\'t confirm commands</string>

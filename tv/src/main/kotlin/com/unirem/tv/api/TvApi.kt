@@ -4,6 +4,10 @@ import com.unirem.core.api.LanAccess
 import com.unirem.core.api.NetworkType
 import com.unirem.core.api.StableIdentity
 import com.unirem.core.api.TvFailure
+import com.unirem.core.api.command.CommandOutcome
+import com.unirem.core.api.command.Evidence
+import com.unirem.core.api.command.RemoteCommand
+import kotlinx.coroutines.flow.StateFlow
 
 /**
  * TV seam for Story 1.5. The gate mapping stays pure; discovery and pairing
@@ -144,6 +148,20 @@ interface TvConnectionControl {
     /** Outbound queue depth. Always zero: commands are never queued. */
     val pendingWrites: Int
 
+    /**
+     * Immediate single-frame write on the open socket (Story 1.11). Returns
+     * true only when the bytes left the phone; a write is never a TV action.
+     * False when no socket is open. Never queues, never retries.
+     */
+    fun sendFrame(text: String): Boolean = false
+
+    /**
+     * Opaque inbound hook for the command tracker (Story 1.11). Invoked once
+     * per channel text on the open socket; the tracker parses it in `:tv`.
+     * Null detaches. Never logs the text: it may carry a token.
+     */
+    fun setMessageListener(listener: ((String) -> Unit)?) {}
+
     companion object {
         const val CONNECT_TIMEOUT_SECONDS = 10L
     }
@@ -170,6 +188,33 @@ suspend fun PairingStore.rotateAlias(
         clear(oldTvId)
     }
     return true
+}
+
+/**
+ * Socket-bound command port for Story 1.11. One `submit()` per user tap
+ * yields exactly one `ms.remote.control` Click frame; adapters report
+ * [Evidence] and never a verdict. The single [CommandTracker] behind this
+ * port is the sole [CommandOutcome] writer. `:app` observes [outcome] and
+ * wires taps; it never sees a frame, a `KEY_*` code, or a socket type.
+ */
+interface TvControl {
+    /** Single outcome flow; the mutable flow never escapes. */
+    val outcome: StateFlow<CommandOutcome>
+
+    /** One tap: one generation, one Click frame, `Submitted` after the write. */
+    fun submit(command: RemoteCommand)
+
+    /** Opaque channel text; parsed in `:tv`, ignored unless it is evidence. */
+    fun onRemoteMessage(text: String)
+
+    /** Adapter evidence for the current generation; stale evidence is ignored. */
+    fun onEvidence(evidence: Evidence)
+
+    /** "It worked" tap: only an `Unconfirmed` generation can confirm. */
+    fun confirmUser()
+
+    /** Session end: cancels timers, clears to `Idle`. No queue, no replay. */
+    fun close()
 }
 
 /** Persisted TV record shape (Room holds this plus the alias in `:app`). */

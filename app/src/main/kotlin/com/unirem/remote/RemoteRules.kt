@@ -5,17 +5,22 @@ import com.unirem.connection.TargetSession
 import com.unirem.connection.TargetSwitchRules
 import com.unirem.core.api.LanAccess
 import com.unirem.core.api.TvId
+import com.unirem.core.api.command.CommandOutcome
 import com.unirem.tv.TvRecord
 import com.unirem.tv.api.PairingEntry
 import com.unirem.tv.channel.ConnectionState
 
 /**
  * Remote shell states. The ring reports command state only: Idle while a
- * usable socket remains, Offline whenever no usable socket remains. The
- * topbar dot reports socket health; the two are never swapped.
+ * usable socket remains, Submitted/Unconfirmed/Observed while a command is
+ * outstanding, Offline whenever no usable socket remains. The topbar dot
+ * reports socket health; the two are never swapped.
  */
 enum class RemoteRing {
     Idle,
+    Submitted,
+    Unconfirmed,
+    Observed,
     Offline,
 }
 
@@ -52,8 +57,78 @@ object RemoteRules {
     /** Display label twin for the ring. Color never acts alone. */
     fun stateLabel(ring: RemoteRing): String = when (ring) {
         RemoteRing.Idle -> "Idle"
+        RemoteRing.Submitted -> "Sent"
+        RemoteRing.Unconfirmed -> "Waiting for TV…"
+        RemoteRing.Observed -> "TV confirmed"
         RemoteRing.Offline -> "Offline"
     }
+
+    /**
+     * Command outcome to ring (Story 1.11). Offline bridging only: whenever
+     * no usable socket remains the ring shows Offline no matter what the
+     * tracker holds; the tracker itself is cleared to Idle on that path.
+     * Otherwise the ring belongs to the last press: Submitted breathes once,
+     * Unconfirmed glows amber, Observed glows mint.
+     */
+    fun ringFor(
+        state: ConnectionState,
+        banner: BannerKind,
+        lanDenied: Boolean,
+        outcome: CommandOutcome,
+    ): RemoteRing {
+        if (shouldClearCommands(state, banner, lanDenied)) {
+            return RemoteRing.Offline
+        }
+        return when (outcome) {
+            CommandOutcome.Idle -> RemoteRing.Idle
+            is CommandOutcome.Submitted -> RemoteRing.Submitted
+            is CommandOutcome.Unconfirmed -> RemoteRing.Unconfirmed
+            is CommandOutcome.Observed -> RemoteRing.Observed
+        }
+    }
+
+    /**
+     * Tracker-clear truth (Story 1.11). True whenever no usable socket
+     * remains: socket Offline, a terminal Offline/IdentityChanged/
+     * PairingRequired banner, or denied local access. Every transition into
+     * this set clears the tracker to Idle with no queue or replay; the
+     * matching ring shows the 1.10 Offline pair.
+     */
+    fun shouldClearCommands(
+        state: ConnectionState,
+        banner: BannerKind,
+        lanDenied: Boolean,
+    ): Boolean = state == ConnectionState.Offline ||
+        banner == BannerKind.Offline ||
+        banner == BannerKind.IdentityChanged ||
+        banner == BannerKind.PairingRequired ||
+        lanDenied
+
+    /**
+     * State-line copy for one outcome. Machine evidence reads "TV confirmed",
+     * the "It worked" tap reads "You confirmed". The Offline pair comes from
+     * [ringFor]/[stateLabel]; this mapper never claims socket health.
+     */
+    fun outcomeLabel(outcome: CommandOutcome): String = when (outcome) {
+        CommandOutcome.Idle -> "Idle"
+        is CommandOutcome.Submitted -> "Sent"
+        is CommandOutcome.Unconfirmed -> "Waiting for TV…"
+        is CommandOutcome.Observed -> if (outcome.userConfirmed) "You confirmed" else "TV confirmed"
+    }
+
+    /**
+     * D-pad enablement (Story 1.11). True only on a usable socket with no
+     * terminal banner and no gate denial: the 1.10 banner is the only
+     * recovery surface. A showing Unconfirmed or Observed never disables;
+     * keys stay tappable while the command truth resolves.
+     */
+    fun dpadEnabled(
+        state: ConnectionState,
+        banner: BannerKind,
+        lanDenied: Boolean,
+    ): Boolean = state == ConnectionState.Connected &&
+        banner == BannerKind.None &&
+        !lanDenied
 
     /**
      * Durable entry: the target must be the selected TvId and a readable

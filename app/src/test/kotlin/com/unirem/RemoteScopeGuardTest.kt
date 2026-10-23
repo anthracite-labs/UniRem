@@ -75,20 +75,27 @@ class RemoteScopeGuardTest {
     }
 
     @Test
-    fun remoteRendersNoCommandRowsOrServices() {
+    fun remoteRendersDpadWithHonestWiring() {
         val remoteText = kotlinSources(remoteDir).joinToString("\n") { it.second }
+        // The 3×3 cluster, the five-state outcome flow, and the user-confirm
+        // path are the Story 1.11 surface: taps are the only submit source.
+        for (token in listOf(
+            "DpadCluster", "DirectionKey", "OkKey", "CommandOutcome", "RemoteCommand",
+            "onDpad", "ItWorkedButton", "remote_it_worked",
+        )) {
+            assertTrue("remote must wire $token", remoteText.contains(token))
+        }
+        // No socket, service, or key work lives in the shell: one submit per
+        // tap yields one Click frame in `:tv`, and holds belong to Story 1.13.
         for (token in listOf(
             "CommandTracker", "TvConnectionControl", "ConnectionSession",
             "PinnedTls", "WebSocket", "MulticastLock", "WifiManager",
             "FOREGROUND", "WakeLock", "startForeground", "NotificationManager",
             "android.app.Service", "androidx.compose.material",
+            "\"Press\"", "\"Release\"", "VolumeUp", "PowerOff", "VoiceSearch",
+            "PointerMode", "CastSession", "MirrorSession",
         )) {
             assertFalse("remote must not reference $token", remoteText.contains(token))
-        }
-        // No command submission or gesture production inside the shell.
-        // (LayoutDirection for the RTL caret is allowed and not a command.)
-        for (token in listOf("submit(", "Dpad", "DPAD", "VolumeUp", "PowerOff", "VoiceSearch", "PointerMode", "CastSession", "MirrorSession")) {
-            assertFalse("remote must not render $token", remoteText.contains(token))
         }
     }
 
@@ -119,6 +126,10 @@ class RemoteScopeGuardTest {
         for (name in listOf(
             "remote_open", "remote_open_cd",
             "remote_idle", "remote_offline",
+            "remote_sent", "remote_waiting",
+            "remote_tv_confirmed", "remote_you_confirmed",
+            "remote_it_worked", "remote_it_worked_cd",
+            "dpad_up", "dpad_down", "dpad_left", "dpad_right", "dpad_ok",
         )) {
             assertTrue("strings.xml must define $name", xml.contains("name=\"$name\""))
         }
