@@ -9,7 +9,6 @@ import com.unirem.core.api.TvId
 import com.unirem.tv.api.TvCandidate
 import java.time.Instant
 import kotlinx.coroutines.flow.Flow
-
 private const val TAG = "TvStore"
 
 /**
@@ -19,7 +18,10 @@ private const val TAG = "TvStore"
  * single delete path: [forget] removes one [TvId]-keyed row; upserts stay
  * keyed by [TvId].
  */
-class RoomTvStore private constructor(private val dao: TvDao) {
+class RoomTvStore private constructor(
+    private val dao: TvDao,
+    private val overlayDao: MatrixOverlayDao?,
+) {
 
     fun observeAll(): Flow<List<TvRecord>> = dao.observeAll()
 
@@ -81,6 +83,14 @@ class RoomTvStore private constructor(private val dao: TvDao) {
             null
         }
     }
+
+    /**
+     * Overlay rows for the debug harness. Release builds call this with
+     * `isDebug = false`, which serves nothing and ignores writes, so release
+     * labels read the asset only.
+     */
+    fun overlayStore(isDebug: Boolean): MatrixOverlayStore =
+        MatrixOverlayStore(overlayDao, isDebug)
 
     /**
      * Updates the durable record after a successful re-pair (Story 1.7).
@@ -153,14 +163,18 @@ class RoomTvStore private constructor(private val dao: TvDao) {
                     context.applicationContext,
                     TvDatabase::class.java,
                     "unirem-tvs",
-                ).addMigrations(MIGRATION_1_2).fallbackToDestructiveMigration(false).build()
-                val created = RoomTvStore(db.tvDao())
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).fallbackToDestructiveMigration(false).build()
+                val created = RoomTvStore(db.tvDao(), db.overlayDao())
                 instance = created
                 return created
             }
         }
 
         /** Test seam: wraps an in-memory DAO without touching disk. */
-        fun forTests(dao: TvDao): RoomTvStore = RoomTvStore(dao)
+        fun forTests(dao: TvDao): RoomTvStore = RoomTvStore(dao, null)
+
+        /** Test seam with an in-memory overlay DAO. */
+        fun forTests(dao: TvDao, overlayDao: MatrixOverlayDao): RoomTvStore =
+            RoomTvStore(dao, overlayDao)
     }
 }

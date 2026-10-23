@@ -122,4 +122,22 @@
     <string name="connection_not_now_cd">Stop retrying for now</string>
     <string name="connection_repair">Re-pair</string>
     <string name="connection_repair_cd">Pair this TV again</string>
+
+    <string name="capability_full_control">Full control — confirms keys</string>
+    <string name="capability_best_effort">Best-effort — can\'t confirm commands</string>
+
+    <string name="matrix_harness_title">Matrix harness</string>
+    <string name="matrix_harness_open">Matrix harness</string>
+    <string name="matrix_harness_open_cd">Open the developer matrix harness</string>
+    <string name="matrix_harness_record_only">Developer only. Record only what you observed on the TV.</string>
+    <string name="matrix_harness_identity">%1$s · %2$s · %3$s · v%4$d</string>
+    <string name="matrix_harness_save">Save row</string>
+    <string name="matrix_harness_save_cd">Save this observed row</string>
+    <string name="matrix_harness_copy">Copy as JSON</string>
+    <string name="matrix_harness_copy_cd">Copy this row as asset JSON</string>
+    <string name="matrix_harness_clear">Clear</string>
+    <string name="matrix_harness_clear_cd">Clear this overlay row</string>
+    <string name="matrix_harness_confirm_clear">Tap Clear again to confirm</string>
+    <string name="matrix_harness_stale">Stale — the asset moved on</string>
+    <string name="matrix_harness_no_rows">No overlay rows.</string>
 </resources>

@@ -19,6 +19,25 @@ val MIGRATION_1_2: Migration = object : Migration(1, 2) {
     }
 }
 
+/** 2 -> 3 adds the debug-only harness overlay table (Story 1.8). */
+val MIGRATION_2_3: Migration = object : Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS matrix_overlay (" +
+                "overlayKey TEXT NOT NULL PRIMARY KEY, " +
+                "model TEXT NOT NULL, " +
+                "firmware TEXT NOT NULL, " +
+                "networkType TEXT NOT NULL, " +
+                "capability TEXT NOT NULL, " +
+                "scope TEXT NOT NULL, " +
+                "result TEXT NOT NULL, " +
+                "note TEXT NOT NULL DEFAULT '', " +
+                "matrixVersion INTEGER NOT NULL, " +
+                "observedAtEpochSeconds INTEGER NOT NULL)",
+        )
+    }
+}
+
 /**
  * Room record for one paired TV. Holds the identity plus the Keystore alias;
  * never holds the token, pin, or SPKI. Firmware is stored byte-exact, never
@@ -65,9 +84,52 @@ interface TvDao {
     suspend fun deleteById(tvId: String): Int
 }
 
-@Database(entities = [TvRecord::class], version = 2, exportSchema = false)
+@Database(entities = [TvRecord::class, MatrixOverlayRow::class], version = 3, exportSchema = false)
 abstract class TvDatabase : androidx.room.RoomDatabase() {
     abstract fun tvDao(): TvDao
+    abstract fun overlayDao(): MatrixOverlayDao
+}
+
+/**
+ * Debug-harness overlay row (Story 1.8): one observed matrix row per exact
+ * key. The primary key is the exact key (model, firmware, wire network,
+ * capability, scope), so Save replaces the prior row. Rows carry the asset
+ * [matrixVersion] they were recorded against; stale rows never resolve.
+ * Release builds never read this table.
+ */
+@Entity(tableName = "matrix_overlay")
+data class MatrixOverlayRow(
+    @PrimaryKey val overlayKey: String,
+    val model: String,
+    val firmware: String,
+    val networkType: String,
+    val capability: String,
+    val scope: String,
+    val result: String,
+    val note: String = "",
+    val matrixVersion: Int,
+    val observedAtEpochSeconds: Long,
+)
+
+@Dao
+interface MatrixOverlayDao {
+    @Query("SELECT * FROM matrix_overlay ORDER BY observedAtEpochSeconds DESC")
+    fun observeAll(): Flow<List<MatrixOverlayRow>>
+
+    @Query("SELECT * FROM matrix_overlay ORDER BY observedAtEpochSeconds DESC")
+    suspend fun all(): List<MatrixOverlayRow>
+
+    @Query("SELECT * FROM matrix_overlay WHERE overlayKey = :overlayKey LIMIT 1")
+    suspend fun byKey(overlayKey: String): MatrixOverlayRow?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(row: MatrixOverlayRow)
+
+    @Query("DELETE FROM matrix_overlay WHERE overlayKey = :overlayKey")
+    suspend fun deleteByKey(overlayKey: String): Int
+
+    @Query("DELETE FROM matrix_overlay")
+    suspend fun clearAll(): Int
 }
 
 /** Closed network-type wire mapping for the record. */

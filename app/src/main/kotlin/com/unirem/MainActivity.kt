@@ -35,12 +35,18 @@ import com.unirem.core.api.LanAccess
 import com.unirem.core.api.NetworkType
 import com.unirem.core.api.RedactedLog
 import com.unirem.core.api.TvId
+import com.unirem.capability.CapabilityCopy
+import com.unirem.capability.CapabilityLabelTracker
+import com.unirem.capability.MatrixAsset
+import com.unirem.capability.MatrixHarnessScreen
+import com.unirem.capability.toCapabilityRow
 import com.unirem.connection.BannerKind
 import com.unirem.connection.ConnectionController
 import com.unirem.connection.ConnectionScreen
 import com.unirem.connection.RePairCommit
 import com.unirem.connection.TargetSessionHolder
 import com.unirem.gate.LanAccessGate
+import com.unirem.gate.GateQuietAction
 import com.unirem.setup.AddTvScreen
 import com.unirem.setup.PairedScreen
 import com.unirem.setup.PairingScreen
@@ -50,6 +56,8 @@ import com.unirem.setup.TrustLogic
 import com.unirem.setup.TrustSheet
 import com.unirem.tv.KeystorePairingStore
 import com.unirem.tv.RoomTvStore
+import com.unirem.tv.MatrixOverlayRow
+import com.unirem.tv.MatrixOverlayStore
 import com.unirem.tv.wire
 import com.unirem.tv.api.DiscoveryResult
 import com.unirem.tv.api.PairOutcome
@@ -65,6 +73,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.time.Instant
 
 class MainActivity : ComponentActivity() {
 
@@ -108,6 +117,9 @@ class MainActivity : ComponentActivity() {
                 var pairedName by remember { mutableStateOf("") }
                 var pairedModel by remember { mutableStateOf("") }
                 var pairedSessionOnly by remember { mutableStateOf(false) }
+                // Durable TvId hex behind the paired summary; null while
+                // session-only. Drives the one capability plate (Story 1.8).
+                var pairedTvIdHex by rememberSaveable { mutableStateOf<String?>(null) }
                 val sessionTrust = remember { mutableStateMapOf<String, PairingEntry>() }
                 // Reusable TvId-keyed trust sheet destination (Story 1.9 reuses
                 // the same key). Holds the TvId hex, never an IP.
@@ -144,6 +156,13 @@ class MainActivity : ComponentActivity() {
                 }
                 val tvStore = remember { RoomTvStore.get(applicationContext) }
                 val pairingStore = remember { KeystorePairingStore(applicationContext) }
+                // Story 1.8: the single capability display owner plus the
+                // debug overlay. Release builds serve overlay nothing, so the
+                // card reads the asset only.
+                val labelTracker = remember { CapabilityLabelTracker(scope, BuildConfig.DEBUG) }
+                val overlayStore = remember { tvStore.overlayStore(BuildConfig.DEBUG) }
+                var matrixAsset by remember { mutableStateOf(MatrixAsset.empty()) }
+                val overlayRows by overlayStore.observe().collectAsState(initial = emptyList())
                 val connectionSession = remember {
                     TvGateways.connection(gateCheck = { gate.checkBeforeAttempt() })
                 }
@@ -189,6 +208,45 @@ class MainActivity : ComponentActivity() {
 
                 LaunchedEffect(Unit) {
                     records = withContext(Dispatchers.IO) { tvStore.all() }
+                }
+
+                // Story 1.8: capability inputs. The asset loads once per
+                // paired TV, the subject refreshes from the latest record
+                // (a firmware change rematches the matrix), and overlay
+                // rows flow from the debug store. The tracker recomputes.
+                LaunchedEffect(pairedTvIdHex) {
+                    val hex = pairedTvIdHex ?: return@LaunchedEffect
+                    val asset = withContext(Dispatchers.IO) {
+                        MatrixAsset.load(applicationContext)
+                    }
+                    matrixAsset = asset
+                    labelTracker.setAsset(asset)
+                    val record = withContext(Dispatchers.IO) { tvStore.byId(TvId(hex)) }
+                    if (record != null) {
+                        labelTracker.setSubject(
+                            CapabilityLabelTracker.subjectOf(
+                                TvId(hex),
+                                record.model.ifBlank { record.modelName },
+                                record.firmware,
+                                record.networkType,
+                            ),
+                        )
+                    }
+                }
+                LaunchedEffect(records) {
+                    val hex = pairedTvIdHex ?: return@LaunchedEffect
+                    val record = records.firstOrNull { it.tvId == hex } ?: return@LaunchedEffect
+                    labelTracker.setSubject(
+                        CapabilityLabelTracker.subjectOf(
+                            TvId(hex),
+                            record.model.ifBlank { record.modelName },
+                            record.firmware,
+                            record.networkType,
+                        ),
+                    )
+                }
+                LaunchedEffect(overlayRows, matrixAsset) {
+                    labelTracker.setOverlays(overlayRows.mapNotNull { it.toCapabilityRow() })
                 }
 
                 // Durable-only sheet data: stored Room record plus the
@@ -243,9 +301,11 @@ class MainActivity : ComponentActivity() {
                             when (decision) {
                                 TrustLogic.ForgetDecision.Succeeded -> {
                                     records = tvStore.all()
+                                    labelTracker.removeSubject(tvId.hex)
                                     pairedName = ""
                                     pairedModel = ""
                                     pairedSessionOnly = false
+                                    pairedTvIdHex = null
                                     trustConfirming = false
                                     trustForgetFailed = false
                                     trustTvIdHex = null
@@ -324,6 +384,7 @@ class MainActivity : ComponentActivity() {
                                         pairedName = candidate.displayName
                                         pairedModel = candidate.modelLabel
                                         pairedSessionOnly = true
+                                        pairedTvIdHex = null
                                         route = SetupRoute.Paired
                                     } else {
                                         val tvId = candidate.tvId!!
@@ -340,6 +401,7 @@ class MainActivity : ComponentActivity() {
                                             pairedName = candidate.displayName
                                             pairedModel = candidate.modelLabel
                                             pairedSessionOnly = false
+                                            pairedTvIdHex = record.tvId
                                             route = SetupRoute.Paired
                                         }
                                     }
@@ -748,6 +810,17 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                     SetupRoute.Paired -> {
+                        val pairedLabels by labelTracker.labelsFor(pairedTvIdHex ?: "")
+                            .collectAsState()
+                        val capabilityPlate = if (pairedSessionOnly || pairedTvIdHex == null) {
+                            null
+                        } else {
+                            CapabilityCopy.cardLine(
+                                pairedLabels[CapabilityLabelTracker.CARD_KEY],
+                                getString(R.string.capability_full_control),
+                                getString(R.string.capability_best_effort),
+                            )
+                        }
                         Box(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.TopCenter,
@@ -772,7 +845,90 @@ class MainActivity : ComponentActivity() {
                                         }
                                     },
                                     sessionOnly = pairedSessionOnly,
+                                    capabilityLine = capabilityPlate,
                                 )
+                                // Developer-only entry to the matrix harness.
+                                // Release builds never offer this route.
+                                val harnessHex = pairedTvIdHex
+                                if (BuildConfig.DEBUG && harnessHex != null && !pairedSessionOnly) {
+                                    Spacer(modifier = Modifier.height(GraphiteMintSpacing.X2))
+                                    GateQuietAction(
+                                        label = getString(R.string.matrix_harness_open),
+                                        description = getString(R.string.matrix_harness_open_cd),
+                                        onClick = { route = SetupRoute.MatrixHarness(harnessHex) },
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    is SetupRoute.MatrixHarness -> {
+                        // Debug-only route: the harness records observed rows
+                        // and never opens a socket. Release builds never
+                        // navigate here and render nothing if they do.
+                        if (BuildConfig.DEBUG) {
+                            val hex = current.tvIdHex
+                            val record = records.firstOrNull { it.tvId == hex }
+                            val harnessLabels by labelTracker.labelsFor(hex).collectAsState()
+                            val harnessModel = record?.model.ifNullOrBlank(record?.modelName)
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.TopCenter,
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .widthIn(max = GraphiteMintSpacing.MaxColumnWidth)
+                                        .windowInsetsPadding(WindowInsets.safeDrawing)
+                                        .padding(horizontal = GraphiteMintSpacing.ScreenX)
+                                        .padding(top = GraphiteMintSpacing.X10),
+                                ) {
+                                    MatrixHarnessScreen(
+                                        model = harnessModel,
+                                        firmware = record?.firmware ?: "",
+                                        networkLabel = networkName(record?.networkType),
+                                        networkWire = record?.networkType ?: "unknown",
+                                        matrixVersion = matrixAsset.matrixVersion,
+                                        assetRows = matrixAsset.rows,
+                                        overlayRows = overlayRows.filter { row ->
+                                            row.model == harnessModel &&
+                                                row.firmware == (record?.firmware ?: "")
+                                        },
+                                        resolved = harnessLabels,
+                                        onSave = { key, result, note ->
+                                            scope.launch(Dispatchers.IO) {
+                                                val fresh = tvStore.byId(TvId(hex))
+                                                    ?: return@launch
+                                                val exactModel = fresh.model
+                                                    .ifBlank { fresh.modelName }
+                                                overlayStore.save(
+                                                    MatrixOverlayRow(
+                                                        overlayKey = MatrixOverlayStore.overlayKeyOf(
+                                                            exactModel,
+                                                            fresh.firmware,
+                                                            fresh.networkType,
+                                                            key.capability.name,
+                                                            key.scope.name,
+                                                        ),
+                                                        model = exactModel,
+                                                        firmware = fresh.firmware,
+                                                        networkType = fresh.networkType,
+                                                        capability = key.capability.name,
+                                                        scope = key.scope.name,
+                                                        result = result.name,
+                                                        note = note,
+                                                        matrixVersion = matrixAsset.matrixVersion,
+                                                        observedAtEpochSeconds = Instant.now().epochSecond,
+                                                    ),
+                                                )
+                                            }
+                                        },
+                                        onClear = { overlayKey ->
+                                            scope.launch(Dispatchers.IO) {
+                                                overlayStore.clear(overlayKey)
+                                            }
+                                        },
+                                        onBack = { route = SetupRoute.Paired },
+                                    )
+                                }
                             }
                         }
                     }
@@ -881,6 +1037,15 @@ class MainActivity : ComponentActivity() {
         NetworkType.Unknown -> "unknown"
     }
 
+    private fun String?.ifNullOrBlank(fallback: String?): String =
+        if (this.isNullOrBlank()) fallback ?: "" else this
+
+    private fun networkName(wire: String?): String = when (wire) {
+        "wifi" -> getString(R.string.gate_net_wifi)
+        "ethernet" -> getString(R.string.gate_net_ethernet)
+        else -> getString(R.string.gate_net_unknown)
+    }
+
     private fun openAppSettings() {
         try {
             val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
@@ -902,5 +1067,6 @@ private sealed interface SetupRoute {
     data object AddTv : SetupRoute
     data class Pairing(val candidate: TvCandidate) : SetupRoute
     data object Paired : SetupRoute
+    data class MatrixHarness(val tvIdHex: String) : SetupRoute
     data class Connection(val tvIdHex: String) : SetupRoute
 }

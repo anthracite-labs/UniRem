@@ -191,7 +191,7 @@ fun NoRemoteDiagram(
     }
 }
 
-/** Paired state: name plus model, Done returns to the shell. */
+/** Paired state: name plus model, one capability plate, Done returns to the shell. */
 @Composable
 fun PairedScreen(
     name: String,
@@ -199,6 +199,7 @@ fun PairedScreen(
     onDone: () -> Unit,
     modifier: Modifier = Modifier,
     sessionOnly: Boolean = false,
+    capabilityLine: String? = null,
 ) {
     val notReported = stringResource(R.string.setup_not_reported)
     val line = (if (model.isBlank()) name else "$name · $model").ifBlank { notReported }
@@ -217,6 +218,14 @@ fun PairedScreen(
             Spacer(modifier = Modifier.height(GraphiteMintSpacing.X1))
             BasicText(
                 text = stringResource(R.string.paired_session_only),
+                style = GraphiteMintType.BodySmall.copy(color = GraphiteMint.InkSecondary),
+            )
+        } else if (capabilityLine != null) {
+            // The one durable label: a text plate, never a colored badge and
+            // never socket health. Session-only targets show no plate.
+            Spacer(modifier = Modifier.height(GraphiteMintSpacing.X1))
+            BasicText(
+                text = capabilityLine,
                 style = GraphiteMintType.BodySmall.copy(color = GraphiteMint.InkSecondary),
             )
         }

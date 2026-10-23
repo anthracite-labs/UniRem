@@ -1,0 +1,14 @@
+{
+  "matrixVersion": 1,
+  "rows": [
+    {
+      "model": "*",
+      "firmware": "*unknown*",
+      "networkType": "Unknown",
+      "capability": "Keys",
+      "scope": "Device",
+      "result": "Partial",
+      "matrixVersion": 1
+    }
+  ]
+}
