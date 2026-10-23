@@ -23,6 +23,12 @@ enum class Scenario(val wire: String) {
     CLEAR_PAIRING("clear-pairing"),
     SOCKET_CLOSED("socket-closed"),
     SECURITY("security"),
+    KEY("key"),
+    REPEAT("repeat"),
+    LATENCY("latency"),
+    GESTURE("gesture"),
+    POWER_OFF("power-off"),
+    UNSUPPORTED_KEY("unsupported-key"),
 }
 
 /**

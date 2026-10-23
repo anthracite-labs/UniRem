@@ -1,5 +1,6 @@
 package com.unirem.spikea
 
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.graphics.Typeface
 import android.os.Handler
@@ -16,8 +17,10 @@ import android.widget.TextView
 
 /**
  * One scrollable run log and the run buttons. This is a harness surface, not a
- * product UI: no remote, no switcher, no settings.
+ * product UI: no remote, no switcher, no settings. Text is never translated,
+ * so lint's SetTextI18n is suppressed for the whole file.
  */
+@SuppressLint("SetTextI18n")
 class SpikeAScreen(
     private val activity: Activity,
     private val harness: Harness,
@@ -68,6 +71,7 @@ class SpikeAScreen(
     }
 
     private val buttons = mutableListOf<Button>()
+    private val keyButtons = mutableListOf<Button>()
 
     private val ticker = Handler(Looper.getMainLooper())
     private val tick = object : Runnable {
@@ -118,9 +122,22 @@ class SpikeAScreen(
             if (state.rePairRequired) {
                 append("\nPairing is required for this TV.")
             }
+            append("\nKey session: ").append(if (state.keyConnected) "open" else "closed")
+            append(" | Keys: ").append(if (state.keysEnabled) "enabled" else "disabled")
+            if (state.lastKey.isNotBlank()) {
+                append("\nLast key: ").append(state.lastKey)
+                append(" | Evidence: ").append(state.lastEvidence.ifBlank { "unconfirmed" })
+                if (state.lastLatencyMs >= 0) {
+                    append(" | Latency: ").append(state.lastLatencyMs).append("ms")
+                }
+            }
         }
         status.text = text
         buttons.forEach { it.isEnabled = !state.running }
+        // Key-affecting buttons only make sense on an open session; without the
+        // gate every tap while closed would spam blocked rows. Open keys, scan,
+        // and read stay available while closed.
+        keyButtons.forEach { it.isEnabled = !state.running && state.keysEnabled }
     }
 
     private fun build() {
@@ -168,6 +185,86 @@ class SpikeAScreen(
             "Clear pairing" to { harness.clearPairing() },
             "Inspect security" to { harness.securityInspect() },
         )
+        root.addView(
+            TextView(activity).apply {
+                text = "Keys (Story 1.2): open the session, then one press per key."
+                textSize = 12f
+                setPadding(0, dp(8), 0, 0)
+            },
+        )
+        addButtonRow(
+            "Open keys" to { harness.openKeys() },
+            "Close keys" to { harness.closeKeys() },
+        )
+        addButtonRow(
+            "Up" to { harness.sendKey("UP") },
+            "Down" to { harness.sendKey("DOWN") },
+            needsKeys = true,
+        )
+        addButtonRow(
+            "Left" to { harness.sendKey("LEFT") },
+            "Right" to { harness.sendKey("RIGHT") },
+            needsKeys = true,
+        )
+        addButtonRow(
+            "OK" to { harness.sendKey("OK") },
+            "Back" to { harness.sendKey("BACK") },
+            needsKeys = true,
+        )
+        addButtonRow(
+            "Home" to { harness.sendKey("HOME") },
+            "Apps" to { harness.sendKey("APPS") },
+            needsKeys = true,
+        )
+        addButtonRow(
+            "Search" to { harness.sendKey("SEARCH") },
+            "Power off" to { harness.powerOff() },
+            needsKeys = true,
+        )
+        addButtonRow(
+            "Vol+" to { harness.sendKey("VOL_UP") },
+            "Vol-" to { harness.sendKey("VOL_DOWN") },
+            needsKeys = true,
+        )
+        addButtonRow(
+            "Mute" to { harness.sendKey("MUTE") },
+            "Probe power" to { harness.probePower() },
+            needsKeys = true,
+        )
+        addButtonRow(
+            "Play" to { harness.sendKey("PLAY") },
+            "Pause" to { harness.sendKey("PAUSE") },
+            needsKeys = true,
+        )
+        addButtonRow(
+            "Hold Up" to { harness.holdStart("UP") },
+            "Hold Down" to { harness.holdStart("DOWN") },
+            needsKeys = true,
+        )
+        addButtonRow(
+            "Hold Left" to { harness.holdStart("LEFT") },
+            "Hold Right" to { harness.holdStart("RIGHT") },
+            needsKeys = true,
+        )
+        addButtonRow(
+            "Release hold" to { harness.holdStop() },
+            needsKeys = true,
+        )
+        addButtonRow(
+            "Observed" to { harness.markObserved() },
+            "Not observed" to { harness.markNotObserved() },
+            needsKeys = true,
+        )
+        addButtonRow(
+            "Observed: machine" to { harness.markMachineObserved() },
+            "Observed: probe" to { harness.markProbeObserved() },
+            needsKeys = true,
+        )
+        addButtonRow(
+            "Mark unsupported" to { harness.markLastUnsupported() },
+            "Latency summary" to { harness.latencySummary() },
+            needsKeys = true,
+        )
 
         root.addView(
             TextView(activity).apply {
@@ -199,7 +296,7 @@ class SpikeAScreen(
         root.addView(row)
     }
 
-    private fun addButtonRow(vararg entries: Pair<String, () -> Unit>) {
+    private fun addButtonRow(vararg entries: Pair<String, () -> Unit>, needsKeys: Boolean = false) {
         val row = LinearLayout(activity).apply { orientation = LinearLayout.HORIZONTAL }
         entries.forEach { (label, action) ->
             val button = Button(activity).apply {
@@ -209,6 +306,7 @@ class SpikeAScreen(
                 setOnClickListener { action() }
             }
             buttons += button
+            if (needsKeys) keyButtons += button
             row.addView(
                 button,
                 LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {

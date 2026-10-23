@@ -8,8 +8,13 @@ import android.security.NetworkSecurityPolicy
 import com.unirem.spikea.logic.Backoff
 import com.unirem.spikea.logic.ChannelUrl
 import com.unirem.spikea.logic.CollisionRules
+import com.unirem.spikea.logic.EvidenceSource
 import com.unirem.spikea.logic.IdentityEntry
 import com.unirem.spikea.logic.IdentityRules
+import com.unirem.spikea.logic.KeyOrchestrator
+import com.unirem.spikea.logic.KeyTargetSnapshot
+import com.unirem.spikea.logic.MvpKey
+import com.unirem.spikea.logic.RepeatRules
 import com.unirem.spikea.logic.Redaction
 import com.unirem.spikea.logic.ResultRow
 import com.unirem.spikea.logic.RowResult
@@ -23,6 +28,9 @@ import java.util.Locale
 import java.util.UUID
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledExecutorService
+import java.util.concurrent.ScheduledFuture
+import java.util.concurrent.TimeUnit
 
 /**
  * Spike A orchestration. Every network run is one manual press; there is no
@@ -46,6 +54,11 @@ class Harness(context: Context) {
         val resultsPath: String = "",
         val resultLines: Int = 0,
         val targetCount: Int = 0,
+        val keyConnected: Boolean = false,
+        val keysEnabled: Boolean = false,
+        val lastKey: String = "",
+        val lastLatencyMs: Long = -1L,
+        val lastEvidence: String = "",
     )
 
     private val appContext = context.applicationContext
@@ -78,6 +91,32 @@ class Harness(context: Context) {
 
     @Volatile
     private var rePairRequired: Boolean = false
+
+    // Key-run orchestration. The pure flow (frames, generations, evidence,
+    // probes, close semantics) lives in KeyOrchestrator and is JVM-tested
+    // against a fake transport; the harness only adapts vault, discovery,
+    // results, and UI state around it. Exactly one repeat engine exists, owned
+    // by the orchestrator; there is no second repeat path anywhere.
+    private val keySession = KeySession(pinnedTls)
+    private val repeatScheduler: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor()
+    private var repeatFuture: ScheduledFuture<*>? = null
+
+    private val keyLock = Any()
+
+    private val keys = KeyOrchestrator(
+        transport = keySession,
+        onRow = { scenario, result, snap, notes, checks ->
+            record(rowSnap(scenario, result, snap, notes, checks))
+        },
+        onLog = { line -> log(line) },
+    )
+
+    init {
+        keySession.listener = object : KeySession.Listener {
+            override fun onMachineEvent(name: String) = handleMachineEvent(name)
+            override fun onSocketClosed(code: Int, reason: String) = handleKeySocketClosed(code, reason)
+        }
+    }
 
     fun resultsPath(): String = results.path()
 
@@ -809,6 +848,294 @@ class Harness(context: Context) {
 
     fun shutdown() {
         executor.shutdownNow()
+        repeatScheduler.shutdownNow()
+        keySession.close("harness shutdown")
+    }
+
+    // Key runs. One gesture is one manual press; repeat frames never submit;
+    // a socket write is never recorded as a TV action.
+
+    fun openKeys() = run("open-keys") {
+        val target = active ?: return@run log("No target selected. Scan or read a manual IP first.")
+        if (lanDenied(target)) return@run
+        val tvId = target.tvId
+        if (tvId == null || target.sessionOnly) {
+            record(
+                row(
+                    Scenario.KEY,
+                    RowResult.BLOCKED,
+                    target,
+                    notes = "session-only target; key session needs a stable identity",
+                    checks = mapOf("evidence" to "unconfirmed"),
+                ),
+            )
+            log("Session-only target: no key session without a stable identity.")
+            return@run
+        }
+        val entry = vault.get(tvId)
+        if (entry == null) {
+            record(
+                row(
+                    Scenario.KEY,
+                    RowResult.BLOCKED,
+                    target,
+                    notes = "no stored pairing; pair first; a missing pairing blocks the gate",
+                    checks = mapOf("evidence" to "unconfirmed"),
+                ),
+            )
+            log("No stored pairing for ${tvId.prefix}. Pair first; the gate stays shut.")
+            return@run
+        }
+        if (keySession.isOpen()) {
+            log("Key session already open.")
+            return@run
+        }
+        // Revalidate the pin before the token is attached, same as reconnect.
+        when (val probe = pinnedTls.verify(target.ip, entry.pin)) {
+            is PinnedTls.Probe.Match -> {
+                log("Pin matches. Attaching the stored token and holding the key channel open.")
+                when (val outcome = keySession.open(target.ip, entry.pin, entry.token, KEY_OPEN_TIMEOUT_SECONDS) { log(it) }) {
+                    is KeySession.OpenOutcome.Opened -> {
+                        keys.setEnabled(true)
+                        log("Key session open on the pinned, token-bearing channel. Model, firmware, network, on/reachable recorded per key row.")
+                    }
+                    KeySession.OpenOutcome.Unauthorized -> {
+                        val cleared = vault.clear(tvId)
+                        rePairRequired = true
+                        record(
+                            row(
+                                Scenario.TOKEN_REJECTED,
+                                RowResult.FAIL,
+                                target,
+                                prompt = "unauthorized",
+                                tokenPersists = "rejected",
+                                rePrompt = "required",
+                                pinStable = "match",
+                                tokenSent = entry.token != null,
+                                notes = "key channel rejected the token; pairing is required for this TV." +
+                                    (if (cleared) "" else " Stored pairing could not be cleared."),
+                            ),
+                        )
+                        log("Pairing is required for this TV. Token rejected on the key channel; re-pair. No token resent.")
+                    }
+                    KeySession.OpenOutcome.TimedOut -> {
+                        record(
+                            row(
+                                Scenario.KEY,
+                                RowResult.BLOCKED,
+                                target,
+                                notes = "no channel event within timeout; silence is not failure; no command sent",
+                                checks = mapOf("evidence" to "unconfirmed"),
+                            ),
+                        )
+                        log("No channel event within the timeout. Recorded blocked; no command sent.")
+                    }
+                    is KeySession.OpenOutcome.Closed -> {
+                        record(
+                            row(
+                                Scenario.KEY,
+                                RowResult.BLOCKED,
+                                target,
+                                notes = "socket closed during open (${outcome.code}); no command sent",
+                                checks = mapOf("evidence" to "unconfirmed"),
+                            ),
+                        )
+                        log("Socket closed during open (${outcome.code}). No command sent.")
+                    }
+                    is KeySession.OpenOutcome.Failed -> {
+                        record(
+                            row(
+                                Scenario.KEY,
+                                RowResult.BLOCKED,
+                                target,
+                                notes = outcome.reason,
+                                checks = mapOf("evidence" to "unconfirmed"),
+                            ),
+                        )
+                        log("Key channel failed: ${outcome.reason}")
+                    }
+                }
+            }
+            is PinnedTls.Probe.Mismatch -> {
+                rePairRequired = true
+                record(
+                    row(
+                        Scenario.PIN_MISMATCH,
+                        RowResult.FAIL,
+                        target,
+                        pinStable = "mismatch",
+                        tokenSent = false,
+                        rePrompt = "required",
+                        notes = "stored leaf SPKI differs; fail closed before token attach; key session not opened",
+                    ),
+                )
+                log("Pin mismatch. Failing closed: no token sent, key session not opened.")
+            }
+            PinnedTls.Probe.Missing -> {
+                record(
+                    row(
+                        Scenario.PIN_MISMATCH,
+                        RowResult.FAIL,
+                        target,
+                        pinStable = "missing",
+                        tokenSent = false,
+                        notes = "stored pin missing; re-pair",
+                    ),
+                )
+                log("Stored pin missing: re-pair.")
+            }
+            is PinnedTls.Probe.Failed -> {
+                record(
+                    row(
+                        Scenario.KEY,
+                        RowResult.BLOCKED,
+                        target,
+                        notes = "pin revalidation failed: ${probe.reason}; no token sent",
+                        checks = mapOf("evidence" to "unconfirmed"),
+                    ),
+                )
+                log("Pin revalidation failed: ${probe.reason}. No token sent.")
+            }
+            is PinnedTls.Probe.Captured -> {
+                record(row(Scenario.PIN_MISMATCH, RowResult.FAIL, target, notes = "unexpected capture during key open"))
+                log("Unexpected capture during key open.")
+            }
+        }
+    }
+
+    fun sendKey(keyName: String) = run("key") {
+        val target = active ?: return@run log("No target selected.")
+        val key = MvpKey.byName(keyName)
+            ?: return@run log("Unknown key \"$keyName\". No frame built, no row recorded.")
+        if (lanDenied(target)) return@run
+        keys.tap(key, snapshotOf(target))
+    }
+
+    fun holdStart(keyName: String) = run("hold-start") {
+        val target = active ?: return@run log("No target selected.")
+        val key = MvpKey.byName(keyName)
+            ?: return@run log("Unknown key \"$keyName\". No frame built.")
+        if (lanDenied(target)) return@run
+        if (!keys.holdStart(key, snapshotOf(target))) return@run
+        synchronized(keyLock) {
+            repeatFuture?.cancel(false)
+            // Fixed-delay, not fixed-rate: lint discourages fixed-rate for
+            // cached Android processes, and due() self-corrects drift anyway.
+            // Ticks are capped inside the orchestrator so a stalled scheduler
+            // cannot flood the socket.
+            repeatFuture = repeatScheduler.scheduleWithFixedDelay(
+                { repeatTick() },
+                RepeatRules.INITIAL_DELAY_MS,
+                RepeatRules.CADENCE_MS,
+                TimeUnit.MILLISECONDS,
+            )
+        }
+    }
+
+    fun holdStop() = run("hold-stop") {
+        cancelRepeat()
+        keys.holdStop(snapshotOf(active))
+    }
+
+    fun markObserved() = run("observed") {
+        keys.observe(EvidenceSource.OPERATOR, "operator saw the on-TV effect", snapshotOf(active))
+    }
+
+    fun markMachineObserved() = run("observed-machine") {
+        keys.observe(EvidenceSource.MACHINE, "run log shows a machine event evidencing the effect", snapshotOf(active))
+    }
+
+    fun markProbeObserved() = run("observed-probe") {
+        keys.observe(EvidenceSource.PROBE, "state probe evidences the effect", snapshotOf(active))
+    }
+
+    fun markNotObserved() = run("not-observed") {
+        keys.notObserved(snapshotOf(active))
+    }
+
+    fun recordUnsupported(keyName: String) = run("unsupported-key") {
+        val key = MvpKey.byName(keyName)
+            ?: return@run log("Unknown key \"$keyName\". Nothing recorded.")
+        keys.unsupported(key, snapshotOf(active))
+    }
+
+    fun markLastUnsupported() = run("unsupported-key") {
+        keys.markLastUnsupported(snapshotOf(active))
+    }
+
+    fun powerOff() = run("power-off") {
+        val target = active ?: return@run log("No target selected.")
+        if (lanDenied(target)) return@run
+        val press = keys.powerSend(snapshotOf(target)) ?: return@run
+        log("Power sent once (${MvpKey.POWER.dataOfCmd}). Waiting ${POWER_PROBE_DELAY_SECONDS}s for standby, then probing /api/v2/ and the channel.")
+        try {
+            Thread.sleep(POWER_PROBE_DELAY_SECONDS * 1_000L)
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+        }
+        keys.probePower(press, probeInput(press.target))
+    }
+
+    fun probePower() = run("probe-power") {
+        val press = keys.lastPowerPress
+            ?: return@run log("Probe power needs a power press first. Send Power off, then probe.")
+        if (!keys.isUnconfirmed(press.gestureId)) {
+            return@run log("That power gesture already resolved; send Power off again to probe.")
+        }
+        keys.probePower(press, probeInput(press.target))
+    }
+
+    fun latencySummary() = run("latency") {
+        keys.latencySummary(snapshotOf(active))
+    }
+
+    fun closeKeys() = run("close-keys") {
+        cancelRepeat()
+        keys.close("manual", recordRows = true)
+    }
+
+    private fun repeatTick() {
+        try {
+            val was = keys.keysEnabled
+            keys.holdTick()
+            if (was && !keys.keysEnabled) publishState()
+        } catch (t: Throwable) {
+            log("repeat tick failed: ${t.message ?: t.javaClass.simpleName}")
+        }
+    }
+
+    /**
+     * Machine events are logged with the open-gesture context but never
+     * auto-confirm a key: the harness cannot know which event evidences which
+     * press, and a delayed event must never rewrite a newer press. The
+     * operator attributes an event with the Observed: machine button, which
+     * binds the exact generation.
+     */
+    private fun handleMachineEvent(name: String) {
+        keys.noteMachineEvent(name)
+    }
+
+    private fun handleKeySocketClosed(code: Int, reason: String) {
+        cancelRepeat()
+        keys.onTransportClosed(code, reason)
+        publishState()
+    }
+
+    private fun cancelRepeat() {
+        synchronized(keyLock) {
+            repeatFuture?.cancel(false)
+            repeatFuture = null
+        }
+    }
+
+    /** State probe inputs for a power press: /api/v2/ reachability plus channel state. */
+    private fun probeInput(snap: KeyTargetSnapshot): KeyOrchestrator.ProbeInput {
+        val outcome = discovery.readManual(snap.ip, snap.modelYear, snap.region, snap.label)
+        return KeyOrchestrator.ProbeInput(
+            apiReachable = outcome is DiscoveryOutcome.Found,
+            phoneOnline = outcome !is DiscoveryOutcome.LanDenied,
+            channelOpen = keySession.isOpen(),
+        )
     }
 
     private fun run(name: String, block: () -> Unit) {
@@ -905,6 +1232,56 @@ class Harness(context: Context) {
         )
     }
 
+    /**
+     * Press-time snapshot of the active target. Confirm, probe, and close-idle
+     * rows are built from this, so cycling targets between press and probe can
+     * never attribute TV-B evidence to a TV-A gesture. The IP rides along for
+     * the power probe only and never reaches a row.
+     */
+    private fun snapshotOf(target: TvTarget?): KeyTargetSnapshot {
+        val phone = lanGate.networkSnapshot()
+        val tvNetwork = target?.info?.reportedNetworkType?.let { tvNetworkLabel(it) } ?: ""
+        return KeyTargetSnapshot(
+            ip = target?.ip ?: "",
+            label = target?.displayName ?: "",
+            model = target?.info?.modelLabel ?: "",
+            modelYear = target?.year ?: "",
+            region = target?.region ?: "",
+            firmware = target?.info?.firmware ?: "",
+            networkType = tvNetwork.ifBlank { phone.type },
+            networkDetail = "${phone.detail}; phone=${phone.type}" +
+                if (tvNetwork.isNotBlank()) "; tv=$tvNetwork" else "",
+            identitySource = target?.identity?.source?.wire ?: "",
+            tvIdPrefix = target?.tvId?.prefix ?: "",
+            sessionOnly = target?.sessionOnly == true,
+        )
+    }
+
+    private fun rowSnap(
+        scenario: Scenario,
+        result: RowResult,
+        snap: KeyTargetSnapshot,
+        notes: String = "",
+        checks: Map<String, String> = emptyMap(),
+    ): ResultRow = ResultRow(
+        runId = UUID.randomUUID().toString(),
+        at = Instant.now().toString(),
+        scenario = scenario,
+        result = result,
+        label = snap.label,
+        model = snap.model,
+        modelYear = snap.modelYear,
+        region = snap.region,
+        firmware = snap.firmware,
+        networkType = snap.networkType,
+        networkDetail = snap.networkDetail,
+        identitySource = snap.identitySource,
+        tvIdPrefix = snap.tvIdPrefix,
+        sessionOnly = snap.sessionOnly,
+        notes = notes,
+        checks = checks,
+    )
+
     private fun snapshotState(): State {
         val target = active
         val tvId = target?.tvId
@@ -919,6 +1296,11 @@ class Harness(context: Context) {
             resultsPath = results.path(),
             resultLines = results.lineCount(),
             targetCount = discovered.size,
+            keyConnected = keySession.isOpen(),
+            keysEnabled = keys.keysEnabled,
+            lastKey = keys.lastKeyLabel,
+            lastLatencyMs = keys.lastLatencyMs,
+            lastEvidence = keys.lastEvidence,
         )
     }
 
@@ -964,6 +1346,8 @@ class Harness(context: Context) {
     private companion object {
         const val PAIR_TIMEOUT_SECONDS = 60L
         const val RECONNECT_TIMEOUT_SECONDS = 15L
+        const val KEY_OPEN_TIMEOUT_SECONDS = 15L
+        const val POWER_PROBE_DELAY_SECONDS = 5L
         val TIME: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss")
     }
 }
