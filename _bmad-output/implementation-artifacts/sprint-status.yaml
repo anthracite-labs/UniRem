@@ -36,17 +36,17 @@ tracking_system: file-system
 story_location: _bmad-output/implementation-artifacts
 development_status:
   epic-1: in-progress
-  1-1-prove-the-pairing-and-identity-path-spike-a: review
-  1-2-prove-key-delivery-and-command-evidence-spike-a: review
-  1-3-ship-an-installable-graphite-mint-shell-with-confirmed-ident: review
-  1-4-gate-local-network-access-and-own-the-permission-state: review
-  1-5-find-a-tv-pair-it-and-persist-trust: review
-  1-6-inspect-and-forget-a-trusted-tv: review
-  1-7-reconnect-go-offline-honestly-and-recover-identity-changes: review
-  1-8-earn-capability-labels-from-the-versioned-matrix: review
-  1-9-switch-the-one-paired-tv-without-guessing: review
-  1-10-open-the-remote-and-connect-to-the-selected-tv: review
-  1-11-put-the-d-pad-in-the-ring-and-tell-the-truth-about-every-tap: review
+  1-1-prove-the-pairing-and-identity-path-spike-a: done
+  1-2-prove-key-delivery-and-command-evidence-spike-a: done
+  1-3-ship-an-installable-graphite-mint-shell-with-confirmed-ident: done
+  1-4-gate-local-network-access-and-own-the-permission-state: done
+  1-5-find-a-tv-pair-it-and-persist-trust: done
+  1-6-inspect-and-forget-a-trusted-tv: done
+  1-7-reconnect-go-offline-honestly-and-recover-identity-changes: done
+  1-8-earn-capability-labels-from-the-versioned-matrix: done
+  1-9-switch-the-one-paired-tv-without-guessing: done
+  1-10-open-the-remote-and-connect-to-the-selected-tv: done
+  1-11-put-the-d-pad-in-the-ring-and-tell-the-truth-about-every-tap: done
   1-12-add-the-utility-and-function-keys-and-keep-power-off-honest: backlog
   1-13-repeat-d-pad-holds-and-keep-late-evidence-from-rewriting-the: backlog
   1-14-complete-the-accessibility-floor-across-the-epic-1-surfaces: backlog
