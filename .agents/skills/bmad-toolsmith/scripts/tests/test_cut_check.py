@@ -43,7 +43,7 @@ class CutCheckTest(unittest.TestCase):
 
     def test_unchanged_skill_loses_nothing(self):
         data = self.check("--protect", "SKILL.md#Keep")
-        self.assertEqual([f["path"] for f in data["files"]], ["SKILL.md", "references/r.md"])
+        self.assertEqual(sorted(f["path"] for f in data["files"]), ["SKILL.md", "references/r.md"])
         self.assertEqual((data["lost"], data["missing"]), ([], []))
 
     def test_reports_what_a_rewrite_dropped(self):

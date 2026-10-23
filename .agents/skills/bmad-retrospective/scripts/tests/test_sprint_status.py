@@ -578,6 +578,10 @@ def test_explicit_item_id_is_preserved(tmp_path):
     hasattr(os, "geteuid") and os.geteuid() == 0,
     reason="root bypasses file permission bits",
 )
+@pytest.mark.skipif(
+    os.name == "nt",
+    reason="Windows ACLs ignore chmod 0o555, write still succeeds",
+)
 def test_write_failure_reports_restore_status(tmp_path):
     # If the write cannot happen, the caller must be told whether the original
     # was restored — a silent failure defeats the script's core guarantee.
@@ -789,6 +793,10 @@ def test_directory_target_is_json_error(tmp_path, command):
     hasattr(os, "geteuid") and os.geteuid() == 0,
     reason="root bypasses file permission bits",
 )
+@pytest.mark.skipif(
+    os.name == "nt",
+    reason="Windows ACLs ignore chmod 0o000, read still succeeds",
+)
 @pytest.mark.parametrize("command", ["detect-epic", "update"])
 def test_unreadable_target_is_json_error(tmp_path, command):
     # The other half of the OSError widening: PermissionError, not just
@@ -879,6 +887,10 @@ def test_restore_is_atomic(tmp_path, monkeypatch):
     assert [p.name for p in tmp_path.iterdir()] == ["sprint-status.yaml"]
 
 
+@pytest.mark.skipif(
+    os.name == "nt",
+    reason="Windows requires symlink privilege (WinError 1314)",
+)
 def test_symlinked_target_is_written_through(tmp_path):
     # os.replace onto a symlink would detach the link and leave the real file
     # stale while reporting ok:true.
@@ -892,6 +904,10 @@ def test_symlinked_target_is_written_through(tmp_path):
     assert _load(real)["development_status"]["epic-1-retrospective"] == "done"
 
 
+@pytest.mark.skipif(
+    os.name == "nt",
+    reason="Windows ignores POSIX mode bits, S_IMODE check not portable",
+)
 def test_atomic_write_preserves_mode_and_leaves_no_temp_file(tmp_path):
     # mkstemp creates 0600; without carrying the target's mode over, every
     # update would silently narrow the file.
