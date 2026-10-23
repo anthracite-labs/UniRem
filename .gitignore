@@ -5,3 +5,37 @@ _bmad/config.user.toml
 
 # Token Savior local cache (per-machine index metadata).
 .token-savior-cache.json
+
+# Android / Gradle build output.
+.gradle/
+**/build/
+.kotlin/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Machine-local SDK path. Never shared: it names one developer's disk layout.
+local.properties
+
+# Signing and pairing material. Policy: never committed.
+# Pairing material at runtime lives in Keystore, not in the repo.
+keystore.properties
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.pepk
+
+# IDE state.
+.idea/
+*.iml
+
+# OS clutter.
+.DS_Store
+Thumbs.db
+
+# Build artifacts that are never inputs.
+*.apk
+*.aab
+*.ap_
+*.dex
